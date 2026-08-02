@@ -1,65 +1,88 @@
-import Image from "next/image";
+import Link from "next/link";
+import { getProducts, getFamilies, hueFor, price } from "@/lib/products";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ family?: string }>;
+}) {
+  const { family } = await searchParams;
+  const [products, families] = await Promise.all([
+    getProducts(family),
+    getFamilies(),
+  ]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="wrap">
+      <section className="opening">
+        <h1>
+          What are you in the <em>mood</em> for?
+        </h1>
+        <p>
+          Everything on our shelf, including the bottles we can&apos;t fit in the
+          kiosk. Pick a family to narrow it down, or scroll the whole thing.
+        </p>
+      </section>
+
+      <nav className="families" aria-label="Filter by scent family">
+        <Link href="/" className="family" data-active={!family}>
+          Everything
+        </Link>
+        {families.map((f) => (
+          <Link
+            key={f}
+            href={`/?family=${encodeURIComponent(f)}`}
+            className="family"
+            data-active={family === f}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {f}
+          </Link>
+        ))}
+      </nav>
+
+      <p className="count">
+        {products.length} {products.length === 1 ? "bottle" : "bottles"}
+        {family ? ` in ${family}` : ""}
+      </p>
+
+      {products.length === 0 ? (
+        <p className="empty">
+          Nothing on the shelf in that family yet. Try another, or{" "}
+          <Link href="/" style={{ color: "var(--amber)" }}>
+            see everything
+          </Link>
+          .
+        </p>
+      ) : (
+        <div className="grid">
+          {products.map((p) => {
+            const hue = hueFor(p.scent_family);
+            return (
+              <Link key={p.sku} href={`/scent/${p.sku}`} className="card">
+                <div className="rail" aria-hidden="true">
+                  <span className="top" style={{ background: hue }} />
+                  <span className="heart" style={{ background: hue }} />
+                  <span className="base" style={{ background: hue }} />
+                </div>
+
+                <p className="brand">{p.brand}</p>
+                <h2 className="name">{p.product_name}</h2>
+                <p className="spec">
+                  {[p.concentration, p.size].filter(Boolean).join(" · ")}
+                </p>
+                {p.description && <p className="blurb">{p.description}</p>}
+
+                <div className="card-foot">
+                  <span className="price">{price(p.price_cents)}</span>
+                  <span className="stock">{p.scent_family}</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
-      </main>
-    </div>
+      )}
+    </main>
   );
 }
