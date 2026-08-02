@@ -2,3 +2,4 @@ squareup>=42
 pandas
 openpyxl
 python-dotenv
+psycopg[binary]

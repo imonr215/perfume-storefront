@@ -65,12 +65,16 @@ def load_inventory(path: str) -> pd.DataFrame:
     # Keep only rows with the essentials filled in.
     df = df[df["Brand"].notna() & df["Product Name"].notna() & df["Size"].notna()].copy()
 
-    # Rebuild SKU defensively: the sheet's formula may be stale on a hand-edited file.
+    # SKU is ALWAYS derived here, never read from the sheet.
+    #
+    # The sheet's SKU formula only substitutes spaces, so it preserves "&",
+    # apostrophes, periods and accents (e.g. DOLCE-&-GABBANA-..., TOM-FORD-OMBRE\u0301-...).
+    # make_sku() strips every non-alphanumeric character. Trusting the sheet in
+    # one script and regenerating in another is how the two drift apart, which
+    # silently breaks the SKU join between Square and the warehouse.
+    # One function, used everywhere, is the invariant that keeps them aligned.
     df["SKU"] = df.apply(
-        lambda r: (str(r.get("SKU (auto)")).strip()
-                   if pd.notna(r.get("SKU (auto)")) and str(r.get("SKU (auto)")).strip()
-                   else make_sku(r["Brand"], r["Product Name"], r["Size"])),
-        axis=1,
+        lambda r: make_sku(r["Brand"], r["Product Name"], r["Size"]), axis=1
     )
 
     # Numeric coercions.
