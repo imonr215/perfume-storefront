@@ -12,19 +12,20 @@ import postgres from "postgres";
  * what that pooler is built for.
  */
 
-declare global {
-  // eslint-disable-next-line no-var
-  var _sql: ReturnType<typeof postgres> | undefined;
-}
-
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error("DATABASE_URL is not set");
 }
 
+// Cast rather than `declare global`: module augmentation of `var` trips
+// ESLint's no-var rule and behaves inconsistently across TS configs.
+const globalForSql = globalThis as unknown as {
+  _sql?: ReturnType<typeof postgres>;
+};
+
 export const sql =
-  global._sql ??
+  globalForSql._sql ??
   postgres(connectionString, {
     max: 5,
     idle_timeout: 20,
@@ -34,5 +35,5 @@ export const sql =
   });
 
 if (process.env.NODE_ENV !== "production") {
-  global._sql = sql;
+  globalForSql._sql = sql;
 }
