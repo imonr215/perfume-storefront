@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         ${eventType},
         ${merchantId},
         ${extractLocationId(payload)},
-        ${JSON.stringify(payload)}::jsonb
+        ${sql.json(payload as never)}
       )
       ON CONFLICT (event_id) DO NOTHING
     `;
