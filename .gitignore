@@ -1,0 +1,5 @@
+.env
+catalog_payload.json
+__pycache__/
+*.pyc
+.venv/
