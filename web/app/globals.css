@@ -275,7 +275,7 @@ a { color: inherit; text-decoration: none; }
   display: block;
   width: 200px;
   height: 267px;
-  margin-bottom: 1.6rem;
+  margin: 0 auto 1.6rem;
 }
 .back {
   display: inline-block;
@@ -711,7 +711,12 @@ a { color: inherit; text-decoration: none; }
   padding: 0.3rem;
 }
 .quickview-close:hover { color: var(--amber); }
-.quickview-glyph { flex: 0 0 140px; width: 140px; height: 187px; }
+/* align-self (not the panel's default align-items: stretch) so a fixed-size
+   item centers on whichever axis is "cross" for the current flex-direction --
+   vertically centered in the row layout on desktop, horizontally centered
+   in the column layout on mobile -- without also centering .quickview-body,
+   which needs to stay stretched full-width for its text to wrap normally. */
+.quickview-glyph { flex: 0 0 140px; width: 140px; height: 187px; align-self: center; }
 .quickview-body { flex: 1; min-width: 0; }
 .quickview-detail-link {
   display: inline-block;
