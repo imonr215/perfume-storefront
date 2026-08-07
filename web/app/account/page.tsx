@@ -22,6 +22,9 @@ export default async function AccountPage() {
           <Link href="/account/orders" className="back">
             Order history →
           </Link>
+          <Link href="/account/addresses" className="back">
+            Saved addresses →
+          </Link>
         </nav>
 
         <form action={logoutAction}>

@@ -2,19 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCart } from "@/lib/cart";
 import { getSession } from "@/lib/auth";
+import { getDefaultAddress } from "@/lib/addresses";
 import { price } from "@/lib/products";
 import { CheckoutForm } from "./checkout-form";
 
 export const dynamic = "force-dynamic";
-
-type SavedAddress = Partial<{
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-}>;
 
 export default async function CheckoutPage() {
   const [items, session] = await Promise.all([getCart(), getSession()]);
@@ -24,7 +16,7 @@ export default async function CheckoutPage() {
     (sum, item) => sum + (item.price_cents ?? 0) * item.quantity,
     0
   );
-  const address = (session?.defaultShippingAddress ?? {}) as SavedAddress;
+  const defaultAddress = session ? await getDefaultAddress(session.id) : null;
 
   return (
     <main className="wrap">
@@ -37,15 +29,15 @@ export default async function CheckoutPage() {
         <CheckoutForm
           offerAccountCreation={!session}
           defaults={{
-            name: session?.name ?? "",
+            name: defaultAddress?.recipient_name ?? session?.name ?? "",
             email: session?.email ?? "",
-            phone: session?.phone ?? "",
-            addressLine1: address.addressLine1 ?? "",
-            addressLine2: address.addressLine2 ?? "",
-            city: address.city ?? "",
-            state: address.state ?? "",
-            postalCode: address.postalCode ?? "",
-            country: address.country ?? "US",
+            phone: defaultAddress?.phone ?? session?.phone ?? "",
+            addressLine1: defaultAddress?.address_line1 ?? "",
+            addressLine2: defaultAddress?.address_line2 ?? "",
+            city: defaultAddress?.city ?? "",
+            state: defaultAddress?.state ?? "",
+            postalCode: defaultAddress?.postal_code ?? "",
+            country: defaultAddress?.country ?? "US",
           }}
         />
 
@@ -66,6 +58,15 @@ export default async function CheckoutPage() {
             <span className="cart-total">{price(subtotalCents)}</span>
           </div>
           <p className="cart-note">Card details go straight to Square — this site never sees them.</p>
+          {session && (
+            <p className="cart-note">
+              {defaultAddress ? "Prefilled from your default address. " : ""}
+              <Link href="/account/addresses" style={{ color: "var(--amber)" }}>
+                Manage saved addresses
+              </Link>
+              .
+            </p>
+          )}
         </aside>
       </div>
     </main>

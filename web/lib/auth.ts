@@ -9,7 +9,6 @@ export type SessionCustomer = {
   email: string;
   name: string | null;
   phone: string | null;
-  defaultShippingAddress: Record<string, unknown> | null;
 };
 
 const SESSION_COOKIE = "session";
@@ -55,15 +54,9 @@ export async function getSession(): Promise<SessionCustomer | null> {
   if (!token) return null;
 
   const rows = await sql<
-    {
-      id: string;
-      email: string;
-      name: string | null;
-      phone: string | null;
-      default_shipping_address: Record<string, unknown> | null;
-    }[]
+    { id: string; email: string; name: string | null; phone: string | null }[]
   >`
-    SELECT c.id, c.email, c.name, c.phone, c.default_shipping_address
+    SELECT c.id, c.email, c.name, c.phone
     FROM store_customer_sessions s
     JOIN store_customers c ON c.id = s.customer_id
     WHERE s.token_hash = ${hashToken(token)} AND s.expires_at > now()
@@ -72,13 +65,7 @@ export async function getSession(): Promise<SessionCustomer | null> {
   const row = rows[0];
   if (!row) return null;
 
-  return {
-    id: row.id,
-    email: row.email,
-    name: row.name,
-    phone: row.phone,
-    defaultShippingAddress: row.default_shipping_address,
-  };
+  return { id: row.id, email: row.email, name: row.name, phone: row.phone };
 }
 
 /** For pages that require a logged-in customer -- redirects, never throws. */

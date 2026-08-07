@@ -300,3 +300,32 @@ CREATE TABLE IF NOT EXISTS store_order_items (
 );
 
 CREATE INDEX IF NOT EXISTS ix_store_order_items_order ON store_order_items (order_id);
+
+-- A proper address book (multiple saved addresses, one marked default),
+-- superseding store_customers.default_shipping_address -- that column is
+-- left in place rather than dropped (it may already hold data from before
+-- this table existed), but new code reads/writes addresses here instead.
+CREATE TABLE IF NOT EXISTS store_customer_addresses (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id     UUID        NOT NULL REFERENCES store_customers (id) ON DELETE CASCADE,
+    label           TEXT,
+    recipient_name  TEXT        NOT NULL,
+    phone           TEXT,
+    address_line1   TEXT        NOT NULL,
+    address_line2   TEXT,
+    city            TEXT        NOT NULL,
+    state           TEXT        NOT NULL,
+    postal_code     TEXT        NOT NULL,
+    country         TEXT        NOT NULL DEFAULT 'US',
+    is_default      BOOLEAN     NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_customer_addresses_customer
+    ON store_customer_addresses (customer_id);
+
+-- Enforced at the DB level, not just in application code: at most one
+-- default address per customer.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_customer_addresses_default
+    ON store_customer_addresses (customer_id) WHERE is_default;

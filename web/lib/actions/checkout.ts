@@ -5,10 +5,12 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { createSession, getSession, hashPassword } from "@/lib/auth";
 import { clearCart, getCart, readCartId } from "@/lib/cart";
+import { createAddress } from "@/lib/addresses";
 import {
   createOrderAndPayment,
   findOrCreateSquareCustomer,
   SquareError,
+  type ShippingRecipient,
   type SquareLineItem,
 } from "@/lib/square";
 import { isValidEmail } from "@/lib/validate";
@@ -126,6 +128,20 @@ export async function checkoutAction(
     country,
   };
 
+  const shipping: ShippingRecipient = {
+    displayName: contactName,
+    emailAddress: contactEmail,
+    phoneNumber: contactPhone || undefined,
+    address: {
+      addressLine1,
+      addressLine2: addressLine2 || null,
+      locality: city,
+      administrativeDistrictLevel1: state,
+      postalCode,
+      country,
+    },
+  };
+
   let orderId: string;
   try {
     const squareCustomerId = session
@@ -137,6 +153,7 @@ export async function checkoutAction(
       sourceId,
       customerId: squareCustomerId,
       buyerEmail: contactEmail,
+      shipping,
     });
 
     const orderRows = await sql<{ id: string }[]>`
@@ -169,14 +186,29 @@ export async function checkoutAction(
       if (!alreadyRegistered[0]) {
         const passwordHash = await hashPassword(newPassword);
         const createdRows = await sql<{ id: string }[]>`
-          INSERT INTO store_customers (email, password_hash, name, square_customer_id, default_shipping_address)
-          VALUES (${contactEmail}, ${passwordHash}, ${contactName}, ${squareCustomerId}, ${sql.json(shippingAddress)})
+          INSERT INTO store_customers (email, password_hash, name, square_customer_id)
+          VALUES (${contactEmail}, ${passwordHash}, ${contactName}, ${squareCustomerId})
           RETURNING id
         `;
         const newCustomerId = createdRows[0].id;
         await sql`
           UPDATE store_orders SET customer_id = ${newCustomerId}, guest_email = NULL WHERE id = ${orderId}
         `;
+        await createAddress(
+          newCustomerId,
+          {
+            label: null,
+            recipientName: contactName,
+            phone: contactPhone || null,
+            addressLine1,
+            addressLine2: addressLine2 || null,
+            city,
+            state,
+            postalCode,
+            country,
+          },
+          true
+        );
         await createSession(newCustomerId);
       }
       // If the email is already registered, we leave the order as a guest

@@ -542,7 +542,13 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: 1.6rem;
 }
 .account-card-name { margin: 0; }
-.account-nav { margin-bottom: 2rem; }
+.account-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 2rem;
+}
+.account-nav .back { padding-top: 0; }
 
 .order-history { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--edge); }
 .order-history-row { border-bottom: 1px solid var(--edge); }
@@ -555,10 +561,46 @@ a { color: inherit; text-decoration: none; }
 }
 .order-history-row a:hover { color: var(--amber); }
 
+/* --- Address book -------------------------------------------------------------- */
+.address-list { list-style: none; margin: 0 0 2rem; padding: 0; }
+.address-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1.5rem;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 4px 4px 16px 16px;
+  padding: 1.3rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.address-default-tag {
+  display: inline-block;
+  margin: 0.6rem 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--moss);
+}
+.address-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+.address-actions .cart-update {
+  text-decoration: none;
+  text-align: center;
+}
+.address-form-card { max-width: 30rem; }
+
 @media (max-width: 760px) {
   .checkout-grid { grid-template-columns: 1fr; gap: 2rem; }
   .order-summary { position: static; }
   .cart-row { grid-template-columns: 1fr; gap: 0.6rem; }
   .cart-line-price { text-align: left; }
   .order-history-row a { grid-template-columns: 1fr; gap: 0.3rem; }
+  .address-card { flex-direction: column; }
+  .address-actions { flex-direction: row; align-items: center; }
 }
