@@ -197,3 +197,106 @@ SELECT
 FROM dim_products p
 LEFT JOIN fact_line_items li ON li.sku = p.sku
 GROUP BY p.sku, p.brand, p.product_name, p.scent_family, p.gender;
+
+
+-- ---------------------------------------------------------------------------
+-- 6. STOREFRONT APPLICATION TABLES (accounts, cart, checkout)
+--
+-- Deliberately prefixed store_* and kept separate from the dim_/fact_
+-- warehouse above. Those tables are analytics data, rebuilt asynchronously
+-- from webhooks by transform_events.py -- fine for reporting, unusable for
+-- "show the order the customer just paid for" or "log this customer in".
+-- store_orders is the synchronous, transactional record the site itself
+-- reads and writes at checkout time. It will legitimately disagree with
+-- fact_orders for a few minutes after every purchase, until the webhook
+-- backlog is processed; that's expected, not a bug to reconcile.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS store_customers (
+    id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    email                   TEXT        NOT NULL UNIQUE,
+    password_hash           TEXT        NOT NULL,
+    name                    TEXT,
+    phone                   TEXT,
+    default_shipping_address JSONB,     -- prefill only, not a full address book
+    square_customer_id      TEXT,       -- set lazily on first order (see lib/square.ts)
+
+    failed_login_attempts  INTEGER     NOT NULL DEFAULT 0,
+    locked_until            TIMESTAMPTZ,
+
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Session tokens are never stored raw -- only their sha256 hash, so a DB
+-- leak alone isn't enough to hijack a session (same asymmetry as the
+-- webhook's HMAC signature check in api/webhooks/square/route.ts).
+CREATE TABLE IF NOT EXISTS store_customer_sessions (
+    token_hash  TEXT        PRIMARY KEY,
+    customer_id UUID        NOT NULL REFERENCES store_customers (id) ON DELETE CASCADE,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_customer_sessions_customer
+    ON store_customer_sessions (customer_id);
+
+-- One persistent cart per account (customer_id UNIQUE); guest carts have
+-- customer_id NULL and are found only via the cart_id cookie -- Postgres
+-- doesn't enforce uniqueness across NULLs, so many guest carts can coexist.
+CREATE TABLE IF NOT EXISTS store_carts (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID        UNIQUE REFERENCES store_customers (id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS store_cart_items (
+    cart_id   UUID        NOT NULL REFERENCES store_carts (id) ON DELETE CASCADE,
+    sku       TEXT        NOT NULL REFERENCES dim_products (sku),
+    quantity  INTEGER     NOT NULL CHECK (quantity > 0),
+    added_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (cart_id, sku)
+);
+
+-- id doubles as the confirmation-page URL token, so it must be unguessable --
+-- a guest with no account still needs to be able to open their receipt.
+CREATE TABLE IF NOT EXISTS store_orders (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id         UUID        REFERENCES store_customers (id),
+    guest_email         TEXT,
+
+    square_order_id     TEXT,
+    square_payment_id   TEXT,
+    status              TEXT        NOT NULL DEFAULT 'paid'
+        CHECK (status IN ('paid', 'failed', 'refunded')),
+
+    subtotal_cents      BIGINT      NOT NULL,
+    total_cents         BIGINT      NOT NULL,
+
+    contact_name        TEXT,
+    contact_email       TEXT        NOT NULL,
+    contact_phone       TEXT,
+    shipping_address    JSONB,
+
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CHECK (customer_id IS NOT NULL OR guest_email IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS ix_store_orders_customer ON store_orders (customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_store_orders_square    ON store_orders (square_order_id);
+
+-- Snapshots product_name/brand/unit_price at purchase time -- a later catalog
+-- price change must not rewrite what someone already paid.
+CREATE TABLE IF NOT EXISTS store_order_items (
+    id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    order_id          UUID    NOT NULL REFERENCES store_orders (id) ON DELETE CASCADE,
+    sku               TEXT    NOT NULL,
+    product_name      TEXT    NOT NULL,
+    brand             TEXT,
+    unit_price_cents  BIGINT  NOT NULL,
+    quantity          INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_store_order_items_order ON store_order_items (order_id);

@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Fraunces, Karla } from "next/font/google";
+import { getSession } from "@/lib/auth";
+import { cartCount } from "@/lib/cart";
+import { logoutAction } from "@/lib/actions/auth";
 import "./globals.css";
 
 /* Fraunces for display: a soft optical serif — warm and handmade rather than
@@ -23,18 +27,34 @@ export const metadata: Metadata = {
     "A small fragrance counter. Browse the full shelf, find your scent, and reorder the one you already love.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const [session, count] = await Promise.all([getSession(), cartCount()]);
+
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>
         <header className="masthead">
           <div className="wrap masthead-inner">
-            <a href="/" className="wordmark">
+            <Link href="/" className="wordmark">
               Maple <span>&amp;</span> Musk
-            </a>
-            <p className="masthead-note">Kiosk pickup or delivery</p>
+            </Link>
+            <nav className="site-nav" aria-label="Account and cart">
+              {session ? (
+                <>
+                  <Link href="/account">{session.name || "Account"}</Link>
+                  <form action={logoutAction} className="site-nav-logout">
+                    <button type="submit">Log out</button>
+                  </form>
+                </>
+              ) : (
+                <Link href="/login">Log in</Link>
+              )}
+              <Link href="/cart" className="site-nav-cart">
+                Bag{count > 0 ? ` (${count})` : ""}
+              </Link>
+            </nav>
           </div>
         </header>
         {children}
