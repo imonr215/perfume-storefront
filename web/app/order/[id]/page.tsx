@@ -69,8 +69,8 @@ export default async function OrderConfirmationPage({
         </p>
         <h1 className="page-title">Thank you, {firstName}.</h1>
         <p className="detail-blurb">
-          A receipt is on its way to {order.contact_email}. Keep this link — it&apos;s your order
-          confirmation.
+          A receipt is on its way to {order.contact_email}. This link is your order confirmation,
+          so keep it somewhere safe.
         </p>
 
         <section className="order-summary order-confirmation-summary">

@@ -82,7 +82,7 @@ export async function checkoutAction(
 
   const unavailable = items.find((item) => !item.is_active);
   if (unavailable) {
-    return { error: `${unavailable.product_name} is no longer available — remove it from your bag.` };
+    return { error: `${unavailable.product_name} is no longer available. Remove it from your bag.` };
   }
 
   // Re-read prices and Square variation ids fresh from the catalog rather

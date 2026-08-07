@@ -31,7 +31,7 @@ function wrapBrand(brand: string): string[] {
   if (lines.length > 2) {
     return [lines[0], lines.slice(1).join(" ")];
   }
-  return lines.length ? lines : ["—"];
+  return lines.length ? lines : ["?"];
 }
 
 /**

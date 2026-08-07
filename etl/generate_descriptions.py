@@ -177,7 +177,7 @@ def build_description(row, sku: str) -> str:
     gender_phrase = pick(GENDER_PHRASES, gender, sku) or DEFAULT_GENDER_PHRASE
     concentration_phrase = CONCENTRATION_PHRASES.get(concentration, DEFAULT_CONCENTRATION_PHRASE)
 
-    sentence2 = f"{family_phrase} — {gender_phrase}, {concentration_phrase}."
+    sentence2 = f"{family_phrase}. {gender_phrase.capitalize()}, {concentration_phrase}."
 
     return f"{sentence1} {sentence2}".strip()
 

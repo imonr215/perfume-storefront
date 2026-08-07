@@ -47,7 +47,7 @@ export default async function CartPage() {
                   <p className="cart-name">{item.product_name}</p>
                   {item.size && <p className="spec">{item.size}</p>}
                   {!item.is_active && (
-                    <p className="cart-warning">No longer available — please remove.</p>
+                    <p className="cart-warning">No longer available. Please remove it.</p>
                   )}
                 </div>
 

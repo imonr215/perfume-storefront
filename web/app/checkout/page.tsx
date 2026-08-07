@@ -57,7 +57,7 @@ export default async function CheckoutPage() {
             <span>Subtotal</span>
             <span className="cart-total">{price(subtotalCents)}</span>
           </div>
-          <p className="cart-note">Card details go straight to Square — this site never sees them.</p>
+          <p className="cart-note">Card details go straight to Square and never touch this site.</p>
           {session && (
             <p className="cart-note">
               {defaultAddress ? "Prefilled from your default address. " : ""}

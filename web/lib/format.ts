@@ -32,6 +32,6 @@ export function hueFor(family: string | null): string {
 }
 
 export function price(cents: number | null): string {
-  if (cents == null) return "—";
+  if (cents == null) return "N/A";
   return `$${(cents / 100).toFixed(0)}`;
 }
