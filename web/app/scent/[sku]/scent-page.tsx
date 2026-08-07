@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getProduct, hueFor, price } from "@/lib/products";
 import { addToCartAction } from "@/lib/actions/cart";
 import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { NoteIcon } from "@/app/components/note-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -83,12 +84,9 @@ export default async function ScentPage({
                 </div>
                 <div className="notes">
                   {notes.map((n) => (
-                    <span
-                      className="note"
-                      key={n}
-                      style={{ borderColor: hue }}
-                    >
-                      {n}
+                    <span className="note" key={n} style={{ borderColor: hue }}>
+                      <NoteIcon note={n} className="note-icon" style={{ color: hue }} />
+                      <span className="note-label">{n}</span>
                     </span>
                   ))}
                 </div>
