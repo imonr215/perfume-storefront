@@ -122,7 +122,21 @@ function QuickViewModal({
 
           <form action={addToCartAction} className="add-to-bag" onSubmit={onClose}>
             <input type="hidden" name="sku" value={product.sku} />
-            <input type="hidden" name="quantity" value="1" />
+            <label className="sr-only" htmlFor="quickview-quantity">
+              Quantity
+            </label>
+            <select
+              id="quickview-quantity"
+              name="quantity"
+              defaultValue="1"
+              className="add-to-bag-qty"
+            >
+              {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
             <button className="buy" type="submit">
               Add to cart
             </button>

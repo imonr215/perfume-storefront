@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { price } from "@/lib/products";
+import { BottleGlyph } from "@/app/components/bottle-glyph";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ type OrderItemRow = {
   brand: string | null;
   unit_price_cents: number;
   quantity: number;
+  scent_family: string | null;
 };
 
 /**
@@ -52,11 +54,15 @@ export default async function OrderConfirmationPage({
   const order = orders[0];
   if (!order) notFound();
 
+  // scent_family isn't snapshotted on the order (unlike brand/name/price) --
+  // it's only decorative here (tints the glyph), so a live join back to the
+  // catalog is fine even though it isn't a true point-in-time snapshot.
   const items = await sql<OrderItemRow[]>`
-    SELECT sku, product_name, brand, unit_price_cents, quantity
-    FROM store_order_items
-    WHERE order_id = ${id}
-    ORDER BY id
+    SELECT oi.sku, oi.product_name, oi.brand, oi.unit_price_cents, oi.quantity, p.scent_family
+    FROM store_order_items oi
+    LEFT JOIN dim_products p ON p.sku = oi.sku
+    WHERE oi.order_id = ${id}
+    ORDER BY oi.id
   `;
 
   const firstName = order.contact_name.split(" ")[0] || order.contact_name;
@@ -78,8 +84,17 @@ export default async function OrderConfirmationPage({
           <ul>
             {items.map((item) => (
               <li key={item.sku} className="order-summary-row">
-                <span>
-                  {item.brand} {item.product_name} × {item.quantity}
+                <span className="order-summary-item">
+                  <BottleGlyph
+                    sku={item.sku}
+                    brand={item.brand ?? item.product_name}
+                    family={item.scent_family}
+                    variant="order"
+                    className="order-summary-glyph"
+                  />
+                  <span>
+                    {item.brand} {item.product_name} × {item.quantity}
+                  </span>
                 </span>
                 <span>{price(item.unit_price_cents * item.quantity)}</span>
               </li>

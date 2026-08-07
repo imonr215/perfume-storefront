@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { getAddresses } from "@/lib/addresses";
 import { addAddressAction, deleteAddressAction, setDefaultAddressAction } from "@/lib/actions/addresses";
 import { AddressForm } from "./address-form";
+import { SubmitButton } from "@/app/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -43,16 +44,16 @@ export default async function AddressesPage() {
                 {!address.is_default && (
                   <form action={setDefaultAddressAction}>
                     <input type="hidden" name="addressId" value={address.id} />
-                    <button type="submit" className="cart-update">
+                    <SubmitButton className="cart-update" pendingLabel="…">
                       Make default
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
                 <form action={deleteAddressAction}>
                   <input type="hidden" name="addressId" value={address.id} />
-                  <button type="submit" className="cart-remove">
+                  <SubmitButton className="cart-remove" pendingLabel="…">
                     Delete
-                  </button>
+                  </SubmitButton>
                 </form>
               </div>
             </li>

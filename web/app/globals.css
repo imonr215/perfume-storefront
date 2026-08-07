@@ -67,7 +67,8 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
 }
 .wordmark {
   font-family: var(--font-display), Georgia, serif;
@@ -404,7 +405,8 @@ a { color: inherit; text-decoration: none; }
 .site-nav {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.2rem;
   font-size: 0.88rem;
   color: var(--ink-soft);
 }
@@ -542,6 +544,8 @@ a { color: inherit; text-decoration: none; }
   padding: 0.5rem 0;
   border-bottom: 1px dashed var(--edge);
 }
+.order-summary-item { display: flex; align-items: center; gap: 0.6rem; }
+.order-summary-glyph { width: 30px; height: 40px; flex: 0 0 auto; }
 
 .form fieldset {
   border: none;

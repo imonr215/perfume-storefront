@@ -3,6 +3,7 @@ import { getCart } from "@/lib/cart";
 import { price } from "@/lib/products";
 import { updateCartItemAction, removeFromCartAction } from "@/lib/actions/cart";
 import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { SubmitButton } from "@/app/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function CartPage() {
         ← Keep browsing
       </Link>
 
-      <h1 style={{ fontSize: "var(--step-3)", margin: "0.4rem 0 2rem" }}>Your cart</h1>
+      <h1 className="page-title">Your cart</h1>
 
       {items.length === 0 ? (
         <p className="empty">
@@ -65,9 +66,9 @@ export default async function CartPage() {
                     defaultValue={item.quantity}
                     className="cart-qty"
                   />
-                  <button type="submit" className="cart-update">
+                  <SubmitButton className="cart-update" pendingLabel="…">
                     Update
-                  </button>
+                  </SubmitButton>
                 </form>
 
                 <p className="cart-line-price">
@@ -76,9 +77,9 @@ export default async function CartPage() {
 
                 <form action={removeFromCartAction}>
                   <input type="hidden" name="sku" value={item.sku} />
-                  <button type="submit" className="cart-remove">
+                  <SubmitButton className="cart-remove" pendingLabel="…">
                     Remove
-                  </button>
+                  </SubmitButton>
                 </form>
               </li>
             ))}
