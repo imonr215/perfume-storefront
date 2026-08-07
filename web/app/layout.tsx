@@ -22,7 +22,7 @@ const body = Karla({
 });
 
 export const metadata: Metadata = {
-  title: "Maple & Musk — fragrance counter",
+  title: "Bloom & Basin — fragrance counter",
   description:
     "A small fragrance counter. Browse the full shelf, find your scent, and reorder the one you already love.",
 };
@@ -38,7 +38,7 @@ export default async function RootLayout({
         <header className="masthead">
           <div className="wrap masthead-inner">
             <Link href="/" className="wordmark">
-              Maple <span>&amp;</span> Musk
+              Bloom <span>&amp;</span> Basin
             </Link>
             <nav className="site-nav" aria-label="Account and cart">
               {session ? (
