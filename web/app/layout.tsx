@@ -52,7 +52,7 @@ export default async function RootLayout({
                 <Link href="/login">Log in</Link>
               )}
               <Link href="/cart" className="site-nav-cart">
-                Bag{count > 0 ? ` (${count})` : ""}
+                Cart{count > 0 ? ` (${count})` : ""}
               </Link>
             </nav>
           </div>

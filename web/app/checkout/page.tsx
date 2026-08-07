@@ -21,7 +21,7 @@ export default async function CheckoutPage() {
   return (
     <main className="wrap">
       <Link href="/cart" className="back">
-        ← Back to your bag
+        ← Back to your cart
       </Link>
       <h1 className="page-title">Checkout</h1>
 

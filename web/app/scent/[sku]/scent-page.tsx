@@ -65,7 +65,7 @@ export default async function ScentPage({
               ))}
             </select>
             <button className="buy" type="submit">
-              Add to bag
+              Add to cart
             </button>
           </form>
         </div>

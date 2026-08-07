@@ -78,16 +78,16 @@ export async function checkoutAction(
 
   const cartId = await readCartId();
   const items = await getCart();
-  if (!cartId || items.length === 0) return { error: "Your bag is empty." };
+  if (!cartId || items.length === 0) return { error: "Your cart is empty." };
 
   const unavailable = items.find((item) => !item.is_active);
   if (unavailable) {
-    return { error: `${unavailable.product_name} is no longer available. Remove it from your bag.` };
+    return { error: `${unavailable.product_name} is no longer available. Remove it from your cart.` };
   }
 
   // Re-read prices and Square variation ids fresh from the catalog rather
   // than trusting the cart join above -- a price change between "add to
-  // bag" and "pay" must not charge the old number.
+  // cart" and "pay" must not charge the old number.
   const skus = items.map((item) => item.sku);
   const products = await sql<
     {

@@ -19,11 +19,11 @@ export default async function CartPage() {
         ← Keep browsing
       </Link>
 
-      <h1 style={{ fontSize: "var(--step-3)", margin: "0.4rem 0 2rem" }}>Your bag</h1>
+      <h1 style={{ fontSize: "var(--step-3)", margin: "0.4rem 0 2rem" }}>Your cart</h1>
 
       {items.length === 0 ? (
         <p className="empty">
-          Nothing in your bag yet.{" "}
+          Nothing in your cart yet.{" "}
           <Link href="/" style={{ color: "var(--amber)" }}>
             Go find something you&apos;ll love
           </Link>

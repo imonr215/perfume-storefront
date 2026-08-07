@@ -124,7 +124,7 @@ function QuickViewModal({
             <input type="hidden" name="sku" value={product.sku} />
             <input type="hidden" name="quantity" value="1" />
             <button className="buy" type="submit">
-              Add to bag
+              Add to cart
             </button>
           </form>
 
