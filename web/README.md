@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Maple & Musk — storefront
 
-## Getting Started
+Next.js (App Router) storefront: catalog browsing, cart, guest + account
+checkout via Square's Web Payments SDK, and a Square webhook receiver that
+feeds the analytics warehouse in `../etl`.
 
-First, run the development server:
-
+## Setup
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local     # fill in DATABASE_URL and the Square vars
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The database needs the warehouse + storefront schema applied once (from
+`../etl`, with `DATABASE_URL` in `../.env`):
+```bash
+python apply_schema.py
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Run
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+- `DATABASE_URL` should be Supabase's transaction pooler string (port 6543) —
+  see `lib/db.ts`.
+- `SQUARE_*` vars authorize server-side Orders/Payments/Customers API calls
+  (`lib/square.ts`); `NEXT_PUBLIC_SQUARE_*` vars are shipped to the browser so
+  the Web Payments SDK can render the card form. Card details are tokenized
+  client-side and never touch this server.
+- Customer accounts and cart/order tables (`store_*`) are transactional and
+  written synchronously at checkout — separate from the `dim_*`/`fact_*`
+  analytics tables in `../etl/schema.sql`, which are rebuilt asynchronously
+  from Square webhooks by `transform_events.py`.

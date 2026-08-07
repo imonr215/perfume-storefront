@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProduct, hueFor, price } from "@/lib/products";
+import { addToCartAction } from "@/lib/actions/cart";
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +40,24 @@ export default async function ScentPage({
 
           <p className="detail-price">{price(p.price_cents)}</p>
 
-          {/* Checkout comes next — this will hand off to Square's hosted
-              payment flow so card details never touch our server. */}
-          <button className="buy" type="button" disabled>
-            Add to bag — coming soon
-          </button>
+          {/* Card details never touch our server: checkout tokenizes with
+              Square's Web Payments SDK client-side. */}
+          <form action={addToCartAction} className="add-to-bag">
+            <input type="hidden" name="sku" value={p.sku} />
+            <label className="sr-only" htmlFor="quantity">
+              Quantity
+            </label>
+            <select id="quantity" name="quantity" defaultValue="1" className="add-to-bag-qty">
+              {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <button className="buy" type="submit">
+              Add to bag
+            </button>
+          </form>
         </div>
 
         <section className="pyramid">
