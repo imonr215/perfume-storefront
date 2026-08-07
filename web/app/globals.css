@@ -242,6 +242,15 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-soft);
   line-height: 1.5;
 }
+/* Grid cards clamp to keep row heights consistent regardless of how long a
+   given description runs -- the full text is still shown on the detail
+   page (.detail-blurb) and in quick view, neither of which uses .card. */
+.card .blurb {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .card-foot {
   margin-top: auto;
   padding-top: 1rem;
