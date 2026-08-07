@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getProducts, getFamilies, hueFor, price } from "@/lib/products";
+import { getProducts, getFamilies } from "@/lib/products";
+import { ProductCard } from "@/app/components/product-card";
 
 export const dynamic = "force-dynamic";
 
@@ -57,30 +58,9 @@ export default async function Home({
         </p>
       ) : (
         <div className="grid">
-          {products.map((p) => {
-            const hue = hueFor(p.scent_family);
-            return (
-              <Link key={p.sku} href={`/scent/${p.sku}`} className="card">
-                <div className="rail" aria-hidden="true">
-                  <span className="top" style={{ background: hue }} />
-                  <span className="heart" style={{ background: hue }} />
-                  <span className="base" style={{ background: hue }} />
-                </div>
-
-                <p className="brand">{p.brand}</p>
-                <h2 className="name">{p.product_name}</h2>
-                <p className="spec">
-                  {[p.concentration, p.size].filter(Boolean).join(" · ")}
-                </p>
-                {p.description && <p className="blurb">{p.description}</p>}
-
-                <div className="card-foot">
-                  <span className="price">{price(p.price_cents)}</span>
-                  <span className="stock">{p.scent_family}</span>
-                </div>
-              </Link>
-            );
-          })}
+          {products.map((p) => (
+            <ProductCard key={p.sku} product={p} />
+          ))}
         </div>
       )}
     </main>

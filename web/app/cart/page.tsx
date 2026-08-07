@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCart } from "@/lib/cart";
 import { price } from "@/lib/products";
 import { updateCartItemAction, removeFromCartAction } from "@/lib/actions/cart";
+import { BottleGlyph } from "@/app/components/bottle-glyph";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,14 @@ export default async function CartPage() {
           <ul className="cart-list">
             {items.map((item) => (
               <li className="cart-row" key={item.sku}>
+                <BottleGlyph
+                  sku={item.sku}
+                  brand={item.brand}
+                  family={item.scent_family}
+                  variant="cart"
+                  className="cart-glyph"
+                />
+
                 <div className="cart-info">
                   <p className="brand">{item.brand}</p>
                   <p className="cart-name">{item.product_name}</p>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProduct, hueFor, price } from "@/lib/products";
 import { addToCartAction } from "@/lib/actions/cart";
+import { BottleGlyph } from "@/app/components/bottle-glyph";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,14 @@ export default async function ScentPage({
 
       <div className="detail">
         <div>
+          <BottleGlyph
+            sku={p.sku}
+            brand={p.brand}
+            family={p.scent_family}
+            variant="detail"
+            className="detail-glyph"
+          />
+
           <p className="brand">{p.brand}</p>
           <h1>{p.product_name}</h1>
           <p className="spec">
