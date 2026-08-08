@@ -980,12 +980,13 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 760px) {
   .checkout-grid { grid-template-columns: 1fr; gap: 2rem; }
   .order-summary { position: static; }
-  /* Keep the glyph rather than hiding it -- give it its own column,
-     spanning every row stacked in the second column, so the thumbnail
-     sits beside the name/qty/price/remove stack instead of shrinking
-     everything else to fit five items across a narrow screen. */
-  .cart-row { grid-template-columns: auto 1fr; grid-auto-rows: auto; gap: 0.4rem 1rem; }
-  .cart-glyph { grid-row: 1 / -1; align-self: start; width: 56px; height: 75px; }
+  /* Bottle on the right at a real size, not a small icon: give it an
+     explicit column + row span (grid placement resolves explicit items
+     first, so this claims column 2 for every row before the rest of the
+     row's children auto-place), and let name/qty/price/remove stack in
+     column 1 beside it. */
+  .cart-row { grid-template-columns: 1fr auto; grid-auto-rows: auto; gap: 0.4rem 1.2rem; }
+  .cart-glyph { grid-column: 2; grid-row: 1 / -1; align-self: center; width: 104px; height: 139px; }
   .cart-line-price { text-align: left; }
   .order-history-row a { grid-template-columns: 1fr; gap: 0.3rem; }
   .address-card { flex-direction: column; }
