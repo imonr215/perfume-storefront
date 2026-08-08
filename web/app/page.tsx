@@ -11,6 +11,7 @@ import {
 import { getRecentlyViewedSkus } from "@/lib/recently-viewed";
 import { ProductCard } from "@/app/components/product-card";
 import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { ScrollActiveFamilyIntoView } from "@/app/scroll-active-family";
 
 export const dynamic = "force-dynamic";
 
@@ -181,6 +182,8 @@ export default async function Home({
           ))}
         </nav>
       </form>
+
+      <ScrollActiveFamilyIntoView />
 
       {recentProducts.length > 0 && (
         <section className="recent-rail">
