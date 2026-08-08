@@ -140,37 +140,83 @@ a { color: inherit; text-decoration: none; }
 }
 .search-submit:hover { background: var(--amber); border-color: var(--amber); }
 
-.filter-selects {
+/* Filters dropdown, anchored to the search bar. <details> gives us an
+   open/closed toggle with no JS; the panel is positioned absolute so
+   opening it floats over the page instead of pushing content down. */
+.filters-dropdown { position: relative; flex: 0 0 auto; }
+.filters-toggle {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.9rem 0 0;
-}
-.filter-field select {
+  height: 100%;
+  list-style: none;
   border: 1px solid var(--edge);
   background: var(--paper);
+  border-radius: 999px;
+  padding: 0.72rem 1.1rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.filters-toggle::-webkit-details-marker { display: none; }
+.filters-toggle:hover { border-color: var(--amber); color: var(--ink); }
+.filters-dropdown[open] .filters-toggle {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.filters-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 4px 4px 16px 16px;
+  padding: 1.2rem;
+  min-width: 15rem;
+  box-shadow: 0 16px 36px -16px rgba(20, 52, 58, 0.35);
+}
+.filter-field { display: block; }
+.filter-field-label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.3rem;
+}
+.filter-field select {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--edge);
+  background: var(--honey);
   border-radius: 999px;
   padding: 0.5rem 0.9rem;
   font: inherit;
   font-size: 0.85rem;
-  color: var(--ink-soft);
+  color: var(--ink);
   cursor: pointer;
 }
 .filter-field select:focus-visible { border-color: var(--amber); }
 .filter-apply {
-  border: 1px solid var(--edge);
-  background: none;
+  border: none;
+  background: var(--amber);
+  color: var(--paper);
   border-radius: 999px;
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1rem;
   font: inherit;
   font-size: 0.85rem;
-  color: var(--ink-soft);
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: background 0.15s;
 }
-.filter-apply:hover { border-color: var(--amber); color: var(--ink); }
+.filter-apply:hover { background: var(--amber-lift); }
 .filter-clear {
+  display: inline-block;
+  margin-top: 0.7rem;
   font-size: 0.85rem;
   color: var(--ink-soft);
   text-decoration: underline;
@@ -178,15 +224,23 @@ a { color: inherit; text-decoration: none; }
 }
 .filter-clear:hover { color: var(--amber); }
 
-/* --- Family filter ------------------------------------------------------- */
+/* --- Family filter -----------------------------------------------------
+   One horizontally-scrolling row rather than wrapping to several lines --
+   there are a dozen families with some long names, so this trades "see
+   them all at once" for "one compact, swipeable bar". */
 .families {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 0.5rem;
   padding: 1.8rem 0 2.6rem;
+  margin-top: 1.4rem;
   border-bottom: 1px solid var(--edge);
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 .family {
+  flex: 0 0 auto;
   border: 1px solid var(--edge);
   background: var(--paper);
   border-radius: 999px;
@@ -195,6 +249,7 @@ a { color: inherit; text-decoration: none; }
   font-size: 0.9rem;
   color: var(--ink-soft);
   cursor: pointer;
+  white-space: nowrap;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .family:hover { border-color: var(--amber); color: var(--ink); }
@@ -459,6 +514,11 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 760px) {
   .detail { grid-template-columns: 1fr; gap: 2rem; }
   .opening { padding: 2.5rem 0 1.5rem; }
+}
+
+@media (max-width: 480px) {
+  .search-row { flex-wrap: wrap; }
+  .search-input { flex: 1 1 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -34,6 +34,7 @@ export default async function Home({
   const priceBucket = sp.price && PRICE_BUCKETS[sp.price] ? sp.price : undefined;
   const bucket = priceBucket ? PRICE_BUCKETS[priceBucket] : undefined;
 
+  const selectFilterCount = [gender, concentration, priceBucket].filter(Boolean).length;
   const activeFilterCount = [q, family, gender, concentration, priceBucket].filter(Boolean).length;
 
   const [products, families, genders, concentrations] = await Promise.all([
@@ -76,62 +77,73 @@ export default async function Home({
             placeholder="Search “bergamot”, “Dior”, “Sauvage”…"
             className="search-input"
           />
+
+          {/* Native disclosure widget, not a client component: the panel's
+              form controls submit with the rest of the form regardless of
+              whether it's open or closed (CSS display:none on closed
+              <details> content doesn't exclude form fields from submission),
+              so this needs zero JS to behave like a filters dropdown. */}
+          <details className="filters-dropdown">
+            <summary className="filters-toggle">
+              Filters{selectFilterCount > 0 ? ` (${selectFilterCount})` : ""}
+            </summary>
+            <div className="filters-panel">
+              <label className="filter-field">
+                <span className="filter-field-label">Gender</span>
+                <select name="gender" defaultValue={gender ?? ""}>
+                  <option value="">Any gender</option>
+                  {genders.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="filter-field">
+                <span className="filter-field-label">Concentration</span>
+                <select name="concentration" defaultValue={concentration ?? ""}>
+                  <option value="">Any concentration</option>
+                  {concentrations.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="filter-field">
+                <span className="filter-field-label">Price</span>
+                <select name="price" defaultValue={priceBucket ?? ""}>
+                  <option value="">Any price</option>
+                  {Object.entries(PRICE_BUCKETS).map(([key, b]) => (
+                    <option key={key} value={key}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button type="submit" className="filter-apply">
+                Apply filters
+              </button>
+            </div>
+          </details>
+
           <button type="submit" className="search-submit">
             Search
           </button>
         </div>
 
-        <div className="filter-selects">
-          <label className="filter-field">
-            <span className="sr-only">Gender</span>
-            <select name="gender" defaultValue={gender ?? ""}>
-              <option value="">Any gender</option>
-              {genders.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="filter-field">
-            <span className="sr-only">Concentration</span>
-            <select name="concentration" defaultValue={concentration ?? ""}>
-              <option value="">Any concentration</option>
-              {concentrations.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="filter-field">
-            <span className="sr-only">Price</span>
-            <select name="price" defaultValue={priceBucket ?? ""}>
-              <option value="">Any price</option>
-              {Object.entries(PRICE_BUCKETS).map(([key, b]) => (
-                <option key={key} value={key}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button type="submit" className="filter-apply">
-            Apply filters
-          </button>
-
-          {activeFilterCount > 0 && (
-            <Link href="/" className="filter-clear">
-              Clear all
-            </Link>
-          )}
-        </div>
+        {activeFilterCount > 0 && (
+          <Link href="/" className="filter-clear">
+            Clear all filters
+          </Link>
+        )}
 
         {/* Family pills are submit buttons in the same form, so clicking one
-            keeps whatever's currently in the search box and the selects
-            above rather than resetting them -- the whole form submits
+            keeps whatever's currently in the search box and the filters
+            dropdown rather than resetting them -- the whole form submits
             together, this button just adds its own family=... field. */}
         <nav className="families" aria-label="Filter by scent family">
           <button type="submit" name="family" value="" className="family" data-active={!family}>
