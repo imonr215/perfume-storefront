@@ -6,6 +6,7 @@ import { getCart } from "@/lib/cart";
 import { logoutAction } from "@/lib/actions/auth";
 import { price } from "@/lib/products";
 import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { CartFlyout } from "@/app/components/cart-flyout";
 import "./globals.css";
 
 /* Fraunces for display: a soft optical serif — warm and handmade rather than
@@ -58,12 +59,12 @@ export default async function RootLayout({
               ) : (
                 <Link href="/login">Log in</Link>
               )}
-              {/* Same zero-JS <details> dropdown pattern as the search
-                  filters: the panel's links work whether or not JS has
-                  loaded, and it opens over the page instead of navigating
-                  straight to /cart so a peek at what's inside doesn't cost
-                  a page load. */}
-              <details className="cart-flyout">
+              {/* Same <details> dropdown pattern as the search filters --
+                  the panel's links work whether or not JS has loaded, and
+                  it opens over the page instead of navigating straight to
+                  /cart. CartFlyout is a thin client wrapper that just
+                  closes it on navigation (see that file for why). */}
+              <CartFlyout>
                 <summary className="cart-flyout-toggle site-nav-cart">
                   Cart{count > 0 ? ` (${count})` : ""}
                 </summary>
@@ -109,7 +110,7 @@ export default async function RootLayout({
                     </Link>
                   </div>
                 </div>
-              </details>
+              </CartFlyout>
             </nav>
           </div>
         </header>
