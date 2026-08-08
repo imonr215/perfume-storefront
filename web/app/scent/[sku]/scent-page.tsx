@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProduct, getSimilarProducts, hueFor, price } from "@/lib/products";
-import { addToCartAction } from "@/lib/actions/cart";
 import { toggleWishlistAction } from "@/lib/actions/wishlist";
 import { getSession } from "@/lib/auth";
 import { isWishlisted } from "@/lib/wishlist";
+import { AddToCartForm } from "@/app/components/add-to-cart-form";
 import { BottleGlyph } from "@/app/components/bottle-glyph";
 import { NoteIcon } from "@/app/components/note-icon";
 import { ProductCard } from "@/app/components/product-card";
@@ -73,22 +73,7 @@ export default async function ScentPage({
               side by side (not nested -- HTML forbids that) so "add to
               cart" and "save for later" submit independently. */}
           <div className="detail-actions">
-            <form action={addToCartAction} className="add-to-bag">
-              <input type="hidden" name="sku" value={p.sku} />
-              <label className="sr-only" htmlFor="quantity">
-                Quantity
-              </label>
-              <select id="quantity" name="quantity" defaultValue="1" className="add-to-bag-qty">
-                {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-              <button className="buy" type="submit">
-                Add to cart
-              </button>
-            </form>
+            <AddToCartForm sku={p.sku} quantityId="quantity" />
 
             {session ? (
               <form action={toggleWishlistAction} className="wishlist-form">

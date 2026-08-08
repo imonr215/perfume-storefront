@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { hueFor, price } from "@/lib/format";
-import { addToCartAction } from "@/lib/actions/cart";
 import type { Product } from "@/lib/products";
+import { AddToCartForm } from "./add-to-cart-form";
 import { BottleGlyph } from "./bottle-glyph";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -120,27 +120,7 @@ function QuickViewModal({
           {product.description && <p className="blurb">{product.description}</p>}
           <p className="detail-price">{price(product.price_cents)}</p>
 
-          <form action={addToCartAction} className="add-to-bag" onSubmit={onClose}>
-            <input type="hidden" name="sku" value={product.sku} />
-            <label className="sr-only" htmlFor="quickview-quantity">
-              Quantity
-            </label>
-            <select
-              id="quickview-quantity"
-              name="quantity"
-              defaultValue="1"
-              className="add-to-bag-qty"
-            >
-              {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <button className="buy" type="submit">
-              Add to cart
-            </button>
-          </form>
+          <AddToCartForm sku={product.sku} quantityId="quickview-quantity" onSubmitted={onClose} />
 
           <Link href={href} className="quickview-detail-link" onClick={onClose}>
             View full details →
