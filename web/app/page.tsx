@@ -54,14 +54,7 @@ export default async function Home({
   return (
     <main className="wrap">
       <section className="opening">
-        <h1>
-          What are you in the <em>mood</em> for?
-        </h1>
-        <p>
-          Everything on our shelf, including the bottles we can&apos;t fit in the
-          kiosk. Search by name or note, narrow it down by family, or scroll the
-          whole thing.
-        </p>
+        <h1 className="page-title">Browse the shelf.</h1>
       </section>
 
       <form method="GET" action="/" className="filter-form">

@@ -82,25 +82,10 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-soft);
 }
 
-/* --- Opening ------------------------------------------------------------- */
-/* The page opens the way the counter does: with the question a shop
-   assistant actually asks, then the families to answer it. */
-.opening { padding: 3.5rem 0 2rem; }
-.opening h1 {
-  font-size: var(--step-4);
-  max-width: 16ch;
-  letter-spacing: -0.02em;
-}
-.opening h1 em {
-  font-style: normal;
-  color: var(--amber);
-}
-.opening p {
-  margin: 1.1rem 0 0;
-  max-width: 46ch;
-  color: var(--ink-soft);
-  font-size: var(--step-1);
-}
+/* --- Opening --------------------------------------------------------------
+   Just top spacing -- the heading itself reuses .page-title, the same
+   plain treatment as every other page, rather than a bespoke hero style. */
+.opening { padding: 2.2rem 0 0; }
 
 /* --- Search + filters ------------------------------------------------------
    One <form> start to finish (see app/page.tsx) -- the search box, the
@@ -513,7 +498,6 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 760px) {
   .detail { grid-template-columns: 1fr; gap: 2rem; }
-  .opening { padding: 2.5rem 0 1.5rem; }
 }
 
 @media (max-width: 480px) {
