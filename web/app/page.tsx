@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getConcentrations, getFamilies, getGenders, getProducts } from "@/lib/products";
+import { getConcentrations, getFamilies, getGenders, getProducts, hueFor } from "@/lib/products";
 import { ProductCard } from "@/app/components/product-card";
 
 export const dynamic = "force-dynamic";
@@ -139,7 +139,14 @@ export default async function Home({
             dropdown rather than resetting them -- the whole form submits
             together, this button just adds its own family=... field. */}
         <nav className="families" aria-label="Filter by scent family">
-          <button type="submit" name="family" value="" className="family" data-active={!family}>
+          <button
+            type="submit"
+            name="family"
+            value=""
+            className="family"
+            data-active={!family}
+            style={{ "--tint": "var(--ink)" } as React.CSSProperties}
+          >
             Everything
           </button>
           {families.map((f) => (
@@ -150,6 +157,7 @@ export default async function Home({
               value={f}
               className="family"
               data-active={family === f}
+              style={{ "--tint": hueFor(f) } as React.CSSProperties}
             >
               {f}
             </button>
