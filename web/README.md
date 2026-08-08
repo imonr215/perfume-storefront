@@ -1,4 +1,4 @@
-# Maple & Musk — storefront
+# Bloom & Basin — storefront
 
 Next.js (App Router) storefront: catalog browsing, cart, guest + account
 checkout via Square's Web Payments SDK, and a Square webhook receiver that

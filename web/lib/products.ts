@@ -1,5 +1,7 @@
 import { sql } from "@/lib/db";
 
+export { FAMILY_HUE, hueFor, price } from "@/lib/format";
+
 export type Product = {
   sku: string;
   brand: string;
@@ -15,51 +17,87 @@ export type Product = {
   description: string | null;
 };
 
-/**
- * Each scent family gets its own hue, used for the pyramid rail on the cards.
- * Colour carries information here: fresh families read green, ambers read
- * plum, so the shelf is scannable by character before you read a label.
- */
-export const FAMILY_HUE: Record<string, string> = {
-  Citrus: "#d0a02a",
-  "Fresh/Aquatic": "#4f8ea0",
-  Green: "#6f7f5c",
-  Aromatic: "#7d9469",
-  Fougère: "#5f8a72",
-  Floral: "#c98195",
-  Chypre: "#8a7340",
-  Woody: "#8a5a34",
-  "Amber/Oriental": "#7a4a63",
-  Gourmand: "#a9663c",
-  Leather: "#6b4630",
-  Spicy: "#b05a34",
+export type ProductFilters = {
+  family?: string;
+  gender?: string;
+  concentration?: string;
+  /** Free-text search: matches brand, product name, description, or any
+   *  top/heart/base note. */
+  q?: string;
+  priceMinCents?: number;
+  priceMaxCents?: number;
 };
 
-export function hueFor(family: string | null): string {
-  return (family && FAMILY_HUE[family]) || "#8a5a34";
-}
+export const PRODUCTS_PAGE_SIZE = 24;
 
-export function price(cents: number | null): string {
-  if (cents == null) return "—";
-  return `$${(cents / 100).toFixed(0)}`;
-}
+// Shared by getProducts and getProductsCount so the two can never drift
+// apart on what counts as a match.
+function buildProductsWhere(filters: ProductFilters) {
+  const conditions = [sql`is_active`];
 
-export async function getProducts(family?: string): Promise<Product[]> {
-  if (family) {
-    return sql<Product[]>`
-      SELECT sku, brand, product_name, concentration, size, price_cents,
-             scent_family, gender, top_notes, heart_notes, base_notes, description
-      FROM dim_products
-      WHERE is_active AND scent_family = ${family}
-      ORDER BY brand, product_name
-    `;
+  if (filters.family) conditions.push(sql`scent_family = ${filters.family}`);
+  if (filters.gender) conditions.push(sql`gender = ${filters.gender}`);
+  if (filters.concentration) conditions.push(sql`concentration = ${filters.concentration}`);
+  if (filters.priceMinCents != null) conditions.push(sql`price_cents >= ${filters.priceMinCents}`);
+  if (filters.priceMaxCents != null) conditions.push(sql`price_cents <= ${filters.priceMaxCents}`);
+
+  if (filters.q?.trim()) {
+    const like = `%${filters.q.trim()}%`;
+    conditions.push(sql`(
+      brand ILIKE ${like}
+      OR product_name ILIKE ${like}
+      OR description ILIKE ${like}
+      OR EXISTS (
+        SELECT 1 FROM unnest(
+          COALESCE(top_notes, '{}') || COALESCE(heart_notes, '{}') || COALESCE(base_notes, '{}')
+        ) AS note
+        WHERE note ILIKE ${like}
+      )
+    )`);
   }
+
+  // Fragments compose: each condition is its own sql`` template, folded
+  // together into a single "a AND b AND c" fragment before being dropped
+  // into the WHERE clause below.
+  return conditions.reduce((acc, cond) => sql`${acc} AND ${cond}`);
+}
+
+export async function getProducts(
+  filters: ProductFilters = {},
+  page = 1
+): Promise<Product[]> {
+  const where = buildProductsWhere(filters);
+  const offset = (Math.max(1, page) - 1) * PRODUCTS_PAGE_SIZE;
+
+  return sql<Product[]>`
+    SELECT sku, brand, product_name, concentration, size, price_cents,
+           scent_family, gender, top_notes, heart_notes, base_notes, description
+    FROM dim_products
+    WHERE ${where}
+    ORDER BY brand, product_name
+    LIMIT ${PRODUCTS_PAGE_SIZE} OFFSET ${offset}
+  `;
+}
+
+export async function getProductsCount(filters: ProductFilters = {}): Promise<number> {
+  const where = buildProductsWhere(filters);
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM dim_products WHERE ${where}
+  `;
+  return rows[0]?.count ?? 0;
+}
+
+/** Unfiltered grab-bag for the "nothing matched" fallback -- random rather
+ *  than always the same alphabetical slice, so a dead-end search still
+ *  turns into a bit of browsing instead of the same four bottles every time. */
+export async function getRandomProducts(limit: number): Promise<Product[]> {
   return sql<Product[]>`
     SELECT sku, brand, product_name, concentration, size, price_cents,
            scent_family, gender, top_notes, heart_notes, base_notes, description
     FROM dim_products
     WHERE is_active
-    ORDER BY brand, product_name
+    ORDER BY random()
+    LIMIT ${limit}
   `;
 }
 
@@ -73,6 +111,26 @@ export async function getFamilies(): Promise<string[]> {
   return rows.map((r) => r.scent_family);
 }
 
+export async function getGenders(): Promise<string[]> {
+  const rows = await sql<{ gender: string }[]>`
+    SELECT DISTINCT gender
+    FROM dim_products
+    WHERE is_active AND gender IS NOT NULL
+    ORDER BY gender
+  `;
+  return rows.map((r) => r.gender);
+}
+
+export async function getConcentrations(): Promise<string[]> {
+  const rows = await sql<{ concentration: string }[]>`
+    SELECT DISTINCT concentration
+    FROM dim_products
+    WHERE is_active AND concentration IS NOT NULL
+    ORDER BY concentration
+  `;
+  return rows.map((r) => r.concentration);
+}
+
 export async function getProduct(sku: string): Promise<Product | null> {
   const rows = await sql<Product[]>`
     SELECT sku, brand, product_name, concentration, size, price_cents,
@@ -82,4 +140,45 @@ export async function getProduct(sku: string): Promise<Product | null> {
     LIMIT 1
   `;
   return rows[0] ?? null;
+}
+
+/** Preserves the order of `skus` (most-recent-first for recently-viewed
+ *  rails) rather than whatever order Postgres happens to return. */
+export async function getProductsBySkus(skus: string[]): Promise<Product[]> {
+  if (skus.length === 0) return [];
+  const rows = await sql<Product[]>`
+    SELECT sku, brand, product_name, concentration, size, price_cents,
+           scent_family, gender, top_notes, heart_notes, base_notes, description
+    FROM dim_products
+    WHERE is_active AND sku = ANY(${skus})
+  `;
+  const bySku = new Map(rows.map((r) => [r.sku, r]));
+  return skus.map((sku) => bySku.get(sku)).filter((p): p is Product => Boolean(p));
+}
+
+/** Same family, or shares at least one top/heart/base note -- same-family
+ *  matches are ranked first, notes-only overlap fills in the rest. Products
+ *  with neither in common are excluded rather than padding out to a fixed
+ *  count with unrelated bottles. */
+export async function getSimilarProducts(
+  sku: string,
+  family: string | null,
+  notes: string[]
+): Promise<Product[]> {
+  if (!family && notes.length === 0) return [];
+  return sql<Product[]>`
+    SELECT sku, brand, product_name, concentration, size, price_cents,
+           scent_family, gender, top_notes, heart_notes, base_notes, description
+    FROM dim_products
+    WHERE is_active
+      AND sku != ${sku}
+      AND (
+        scent_family = ${family}
+        OR (top_notes && ${notes})
+        OR (heart_notes && ${notes})
+        OR (base_notes && ${notes})
+      )
+    ORDER BY (CASE WHEN scent_family = ${family} THEN 0 ELSE 1 END), random()
+    LIMIT 4
+  `;
 }

@@ -67,7 +67,8 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
 }
 .wordmark {
   font-family: var(--font-display), Georgia, serif;
@@ -81,48 +82,174 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-soft);
 }
 
-/* --- Opening ------------------------------------------------------------- */
-/* The page opens the way the counter does: with the question a shop
-   assistant actually asks, then the families to answer it. */
-.opening { padding: 3.5rem 0 2rem; }
-.opening h1 {
-  font-size: var(--step-4);
-  max-width: 16ch;
-  letter-spacing: -0.02em;
-}
-.opening h1 em {
-  font-style: normal;
-  color: var(--amber);
-}
-.opening p {
-  margin: 1.1rem 0 0;
-  max-width: 46ch;
-  color: var(--ink-soft);
-  font-size: var(--step-1);
-}
+/* --- Opening --------------------------------------------------------------
+   Just top spacing -- the heading itself reuses .page-title, the same
+   plain treatment as every other page, rather than a bespoke hero style. */
+.opening { padding: 2.2rem 0 0; }
 
-/* --- Family filter ------------------------------------------------------- */
-.families {
+/* --- Search + filters ------------------------------------------------------
+   One <form> start to finish (see app/page.tsx) -- the search box, the
+   selects, and the family pills (each its own type="submit" button) all
+   submit together, so picking a family never discards a search term or a
+   gender/concentration/price selection already sitting in the form.
+   ------------------------------------------------------------------------ */
+.filter-form { padding-top: 0.5rem; }
+
+.search-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 1.8rem 0 2.6rem;
-  border-bottom: 1px solid var(--edge);
+  gap: 0.6rem;
+  max-width: 34rem;
 }
-.family {
+.search-input {
+  flex: 1;
+  min-width: 0;
   border: 1px solid var(--edge);
   background: var(--paper);
   border-radius: 999px;
-  padding: 0.42rem 0.95rem;
+  padding: 0.72rem 1.1rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.search-input:focus-visible { border-color: var(--amber); }
+.search-submit {
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--honey);
+  border-radius: 999px;
+  padding: 0.6rem 1.3rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.search-submit:hover { background: var(--amber); border-color: var(--amber); }
+
+/* Filters dropdown, anchored to the search bar. <details> gives us an
+   open/closed toggle with no JS; the panel is positioned absolute so
+   opening it floats over the page instead of pushing content down. */
+.filters-dropdown { position: relative; flex: 0 0 auto; }
+.filters-toggle {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  list-style: none;
+  border: 1px solid var(--edge);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 0.72rem 1.1rem;
   font-size: 0.9rem;
   color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.filters-toggle::-webkit-details-marker { display: none; }
+.filters-toggle:hover { border-color: var(--amber); color: var(--ink); }
+.filters-dropdown[open] .filters-toggle {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.filters-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 4px 4px 16px 16px;
+  padding: 1.2rem;
+  min-width: 15rem;
+  box-shadow: 0 16px 36px -16px rgba(20, 52, 58, 0.35);
+}
+.filter-field { display: block; }
+.filter-field-label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.3rem;
+}
+.filter-field select {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--edge);
+  background: var(--honey);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.filter-field select:focus-visible { border-color: var(--amber); }
+.filter-apply {
+  border: none;
+  background: var(--amber);
+  color: var(--paper);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.filter-apply:hover { background: var(--amber-lift); }
+.filter-clear {
+  display: inline-block;
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.filter-clear:hover { color: var(--amber); }
+
+/* --- Family filter -----------------------------------------------------
+   One horizontally-scrolling row rather than wrapping to several lines --
+   there are a dozen families with some long names, so this trades "see
+   them all at once" for "one compact, swipeable bar". */
+.families {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 0.5rem;
+  padding: 1.8rem 0 2.6rem;
+  margin-top: 1.4rem;
+  border-bottom: 1px solid var(--edge);
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+/* --tint is set per-button in app/page.tsx via hueFor(family) -- the same
+   hue the bottle glyph's tri-band tint and the pyramid rail already use, so
+   a pill's color always matches what you'd see on that family's bottles.
+   The plain `background: var(--paper)` line before the color-mix() one is
+   a fallback for browsers that don't support color-mix -- an invalid value
+   is ignored entirely, leaving the earlier declaration in effect. */
+.family {
+  --tint: var(--edge);
+  flex: 0 0 auto;
+  border: 1px solid var(--tint);
+  background: var(--paper);
+  background: color-mix(in srgb, var(--tint) 16%, var(--paper));
+  border-radius: 999px;
+  padding: 0.42rem 0.95rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--tint);
+  cursor: pointer;
+  white-space: nowrap;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .family:hover { border-color: var(--amber); color: var(--ink); }
 .family[data-active="true"] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--honey);
+  background: var(--tint);
+  border-color: var(--tint);
+  color: var(--paper);
 }
 
 /* --- Grid ---------------------------------------------------------------- */
@@ -137,7 +264,33 @@ a { color: inherit; text-decoration: none; }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 1.1rem;
+  padding-bottom: 3rem;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
   padding-bottom: 5rem;
+}
+.pagination-link {
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+a.pagination-link:hover { border-color: var(--amber); color: var(--amber); }
+span.pagination-link[aria-disabled="true"] {
+  color: var(--ink-soft);
+  opacity: 0.45;
+  cursor: default;
+}
+.pagination-status {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
 }
 
 /* --- Bottle card ---------------------------------------------------------
@@ -178,6 +331,48 @@ a { color: inherit; text-decoration: none; }
 .rail .heart { flex: 4; opacity: 0.68; }
 .rail .base  { flex: 5; opacity: 1; }
 
+/* Covers the whole card as one click target. It renders no visible box of
+   its own (only an sr-only label), so stacking it above the static content
+   below doesn't hide anything -- it only intercepts the click/tap. */
+.card-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+.card-link:focus-visible {
+  outline: 2.5px solid var(--amber);
+  outline-offset: -3px;
+}
+
+.card-glyph {
+  display: block;
+  width: 100%;
+  height: 130px;
+  margin: -0.2rem 0 0.9rem;
+}
+
+.quick-view-trigger {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  z-index: 2;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.quick-view-trigger:hover,
+.quick-view-trigger:focus-visible {
+  border-color: var(--amber);
+  color: var(--ink);
+}
+
 .brand {
   font-size: 0.72rem;
   letter-spacing: 0.13em;
@@ -200,6 +395,15 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-soft);
   line-height: 1.5;
 }
+/* Grid cards clamp to keep row heights consistent regardless of how long a
+   given description runs -- the full text is still shown on the detail
+   page (.detail-blurb) and in quick view, neither of which uses .card. */
+.card .blurb {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .card-foot {
   margin-top: auto;
   padding-top: 1rem;
@@ -219,6 +423,12 @@ a { color: inherit; text-decoration: none; }
 .stock[data-low="true"] { color: var(--amber); }
 
 /* --- Detail -------------------------------------------------------------- */
+.detail-glyph {
+  display: block;
+  width: 200px;
+  height: 267px;
+  margin: 0 auto 1.6rem;
+}
 .back {
   display: inline-block;
   padding: 2rem 0 0;
@@ -267,12 +477,17 @@ a { color: inherit; text-decoration: none; }
 .buy:hover { background: var(--amber-lift); }
 
 /* The pyramid, opened up. Bands widen as they descend, the way the notes
-   themselves broaden and settle. */
+   themselves broaden and settle. Sticky on desktop (same idea as
+   .order-summary on checkout) -- it's almost always shorter than the left
+   column's image/price/actions, so without this it just sits at the top
+   with a growing gap of blank space below it as you scroll. */
 .pyramid {
   background: var(--paper);
   border: 1px solid var(--edge);
   border-radius: 4px 4px 16px 16px;
   padding: 1.6rem;
+  position: sticky;
+  top: 1.5rem;
 }
 .pyramid h2 {
   font-size: 0.76rem;
@@ -293,13 +508,27 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-soft);
   padding-top: 0.2rem;
 }
-.notes { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+/* align-items: flex-start (not the flex default of stretch) is what fixes
+   the pills: without it, a pill on the same row as a taller wrapped one
+   gets stretched to match, and pill + border-radius:999px + extra height
+   is what was rendering as an off-center circle instead of a pill. */
+.notes { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem; }
 .note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   border: 1px solid var(--edge);
   border-radius: 999px;
-  padding: 0.22rem 0.7rem;
+  padding: 0.3rem 0.8rem 0.3rem 0.55rem;
   font-size: 0.85rem;
+  white-space: nowrap;
 }
+.note-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+}
+.note-label { line-height: 1; }
 
 .empty {
   padding: 4rem 0 6rem;
@@ -308,7 +537,12 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 760px) {
   .detail { grid-template-columns: 1fr; gap: 2rem; }
-  .opening { padding: 2.5rem 0 1.5rem; }
+  .pyramid { position: static; }
+}
+
+@media (max-width: 480px) {
+  .search-row { flex-wrap: wrap; }
+  .search-input { flex: 1 1 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -333,13 +567,105 @@ a { color: inherit; text-decoration: none; }
 .site-nav {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.2rem;
   font-size: 0.88rem;
   color: var(--ink-soft);
 }
 .site-nav a:hover { color: var(--amber); }
 .site-nav-cart { font-weight: 600; color: var(--ink); }
 .site-nav-logout { display: inline; }
+
+/* Cart flyout -- same <details> dropdown pattern as the search filters
+   (see .filters-dropdown), anchored to the right edge instead of the left
+   so the panel never runs off the viewport on desktop. */
+.cart-flyout { position: relative; }
+.cart-flyout-toggle {
+  display: inline-block;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.cart-flyout-toggle::-webkit-details-marker { display: none; }
+.cart-flyout-panel {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  z-index: 20;
+  width: 20rem;
+  max-width: calc(100vw - 3rem);
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 4px 4px 16px 16px;
+  padding: 1.1rem;
+  box-shadow: 0 16px 36px -16px rgba(20, 52, 58, 0.35);
+}
+.cart-flyout-empty {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  margin: 0 0 1rem;
+}
+.cart-flyout-list {
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  max-height: 20rem;
+  overflow-y: auto;
+}
+.cart-flyout-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--edge);
+}
+.cart-flyout-row:last-child { border-bottom: none; }
+.cart-flyout-glyph { width: 32px; height: 43px; flex: 0 0 auto; }
+.cart-flyout-info { flex: 1; min-width: 0; }
+.cart-flyout-name {
+  font-size: 0.85rem;
+  margin: 0 0 0.15rem;
+  line-height: 1.3;
+}
+.cart-flyout-qty { font-size: 0.78rem; color: var(--ink-soft); margin: 0; }
+.cart-flyout-price { font-size: 0.85rem; white-space: nowrap; margin: 0; }
+.cart-flyout-remove {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.cart-flyout-remove:hover { border-color: var(--amber); color: var(--amber); }
+.cart-flyout-summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--edge);
+  margin-bottom: 1rem;
+}
+.cart-flyout-actions { display: flex; gap: 0.7rem; }
+.cart-flyout-view {
+  flex: 1;
+  text-align: center;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+.cart-flyout-view:hover { border-color: var(--amber); color: var(--amber); }
 .site-nav-logout button {
   background: none;
   border: none;
@@ -366,13 +692,18 @@ a { color: inherit; text-decoration: none; }
   margin: 0 0 1rem;
 }
 
-/* --- Add to bag (scent detail) --------------------------------------------- */
-.add-to-bag {
+/* --- Add to bag + save for later (scent detail) -----------------------------
+   Two independent <form>s (see scent-page.tsx) laid out as one row --
+   .detail-actions carries the shared top margin and wraps them onto their
+   own line if the viewport's too narrow for both at once. */
+.detail-actions {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  flex-wrap: wrap;
+  gap: 0.9rem;
   margin-top: 1.8rem;
 }
+.add-to-bag { display: flex; align-items: center; gap: 0.7rem; }
 .add-to-bag .buy { margin-top: 0; }
 .add-to-bag-qty {
   border: 1px solid var(--edge);
@@ -383,6 +714,43 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink);
 }
 
+.wishlist-toggle {
+  display: inline-block;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.wishlist-toggle:hover { border-color: var(--amber); color: var(--ink); }
+.wishlist-toggle-link { text-decoration: none; }
+
+/* --- Similar scents (scent detail) / recently viewed (home) --------------- */
+.similar-section { padding-top: 1rem; padding-bottom: 5rem; }
+.recent-rail { padding-bottom: 2.5rem; }
+.recent-rail-scroll {
+  display: flex;
+  gap: 1.2rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+}
+.recent-item {
+  flex: 0 0 auto;
+  width: 108px;
+  color: inherit;
+  text-decoration: none;
+}
+.recent-item-glyph { width: 108px; height: 144px; }
+.recent-item-name {
+  font-size: 0.82rem;
+  margin: 0.5rem 0 0.15rem;
+  line-height: 1.3;
+}
+.recent-item-price { font-size: 0.8rem; color: var(--ink-soft); margin: 0; }
+
 /* --- Cart ------------------------------------------------------------------ */
 .cart-list {
   list-style: none;
@@ -392,12 +760,22 @@ a { color: inherit; text-decoration: none; }
 }
 .cart-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: auto 1fr auto auto auto;
   align-items: center;
   gap: 1.2rem;
   padding: 1.3rem 0;
   border-bottom: 1px solid var(--edge);
 }
+.cart-glyph { width: 48px; height: 64px; flex: 0 0 auto; }
+/* Wishlist rows reuse .cart-row but drop the quantity-form cell, so they
+   only have 4 children where a cart row has 5 -- override the column
+   template rather than pad the markup with an empty spacer div. */
+.wishlist-row { grid-template-columns: auto 1fr auto auto; }
+/* On desktop the body wrapper is invisible to layout -- its children (info,
+   qty form, price, remove form) sit directly in .cart-row's column grid,
+   same as before the wrapper existed. Mobile overrides this to a real flex
+   column (see media query below). */
+.cart-row-body { display: contents; }
 .cart-name {
   font-family: var(--font-display), Georgia, serif;
   font-size: var(--step-1);
@@ -470,6 +848,8 @@ a { color: inherit; text-decoration: none; }
   padding: 0.5rem 0;
   border-bottom: 1px dashed var(--edge);
 }
+.order-summary-item { display: flex; align-items: center; gap: 0.6rem; }
+.order-summary-glyph { width: 30px; height: 40px; flex: 0 0 auto; }
 
 .form fieldset {
   border: none;
@@ -542,7 +922,13 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: 1.6rem;
 }
 .account-card-name { margin: 0; }
-.account-nav { margin-bottom: 2rem; }
+.account-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 2rem;
+}
+.account-nav .back { padding-top: 0; }
 
 .order-history { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--edge); }
 .order-history-row { border-bottom: 1px solid var(--edge); }
@@ -555,10 +941,123 @@ a { color: inherit; text-decoration: none; }
 }
 .order-history-row a:hover { color: var(--amber); }
 
+/* --- Address book -------------------------------------------------------------- */
+.address-list { list-style: none; margin: 0 0 2rem; padding: 0; }
+.address-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1.5rem;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 4px 4px 16px 16px;
+  padding: 1.3rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.address-default-tag {
+  display: inline-block;
+  margin: 0.6rem 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--moss);
+}
+.address-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+.address-actions .cart-update {
+  text-decoration: none;
+  text-align: center;
+}
+.address-form-card { max-width: 30rem; }
+
+/* --- Quick view ---------------------------------------------------------------
+   Portal-rendered to document.body (see app/components/product-card.tsx),
+   so this sits outside any card's own stacking/overflow context.
+   ------------------------------------------------------------------------ */
+.quickview-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 52, 58, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 100;
+}
+.quickview-panel {
+  position: relative;
+  display: flex;
+  gap: 1.8rem;
+  background: var(--paper);
+  border-radius: 4px 4px 16px 16px;
+  padding: 2.2rem;
+  max-width: 40rem;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 60px -20px rgba(20, 52, 58, 0.5);
+}
+.quickview-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.9rem;
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 0.3rem;
+}
+.quickview-close:hover { color: var(--amber); }
+/* align-self (not the panel's default align-items: stretch) so a fixed-size
+   item centers on whichever axis is "cross" for the current flex-direction --
+   vertically centered in the row layout on desktop, horizontally centered
+   in the column layout on mobile -- without also centering .quickview-body,
+   which needs to stay stretched full-width for its text to wrap normally. */
+.quickview-glyph { flex: 0 0 140px; width: 140px; height: 187px; align-self: center; }
+.quickview-body { flex: 1; min-width: 0; }
+.quickview-detail-link {
+  display: inline-block;
+  margin-top: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.quickview-detail-link:hover { color: var(--amber); }
+
 @media (max-width: 760px) {
   .checkout-grid { grid-template-columns: 1fr; gap: 2rem; }
   .order-summary { position: static; }
-  .cart-row { grid-template-columns: 1fr; gap: 0.6rem; }
+  /* Bottle on the right at a real size, not a small icon: one grid row
+     with the glyph in column 2 and the body wrapper (now a flex column,
+     not display:contents) in column 1, so the row's height is set by
+     whichever side is taller instead of the glyph's height getting
+     divided up across four separately-tracked rows. */
+  .cart-row { grid-template-columns: 1fr auto; align-items: center; gap: 1.2rem; }
+  /* Both cells pinned to grid-row: 1 explicitly -- without this, the grid
+     auto-placement algorithm advances its shared row cursor after placing
+     an item with an explicit column (the glyph), so the next
+     automatically-positioned item (the body) lands in row 2 instead of
+     sharing row 1 with it. That's what was pushing the text block down
+     below the glyph instead of beside/centered against it. */
+  .cart-glyph { grid-column: 2; grid-row: 1; align-self: center; width: 104px; height: 139px; }
+  .cart-row-body {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
   .cart-line-price { text-align: left; }
   .order-history-row a { grid-template-columns: 1fr; gap: 0.3rem; }
+  .address-card { flex-direction: column; }
+  .address-actions { flex-direction: row; align-items: center; }
+  .quickview-panel { flex-direction: column; padding: 1.6rem; }
+  .quickview-glyph { width: 120px; height: 160px; }
 }

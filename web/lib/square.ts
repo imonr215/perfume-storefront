@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { SquareClient, SquareEnvironment, SquareError } from "square";
+import { SquareClient, SquareEnvironment, SquareError, type Square } from "square";
 
 /**
  * One shared Square client, same globalThis-caching trick as lib/db.ts (dev
@@ -75,11 +75,26 @@ export type SquareLineItem = {
  * no payment is just an abandoned open order, harmless to leave behind if
  * the payment call fails.
  */
+export type ShippingRecipient = {
+  displayName: string;
+  emailAddress: string;
+  phoneNumber?: string;
+  address: {
+    addressLine1: string;
+    addressLine2?: string | null;
+    locality: string;
+    administrativeDistrictLevel1: string;
+    postalCode: string;
+    country: string;
+  };
+};
+
 export async function createOrderAndPayment(params: {
   items: SquareLineItem[];
   sourceId: string;
   customerId?: string;
   buyerEmail: string;
+  shipping: ShippingRecipient;
 }): Promise<{ squareOrderId: string; squarePaymentId: string; totalCents: number }> {
   const locationId = squareLocationId();
 
@@ -93,6 +108,30 @@ export async function createOrderAndPayment(params: {
         quantity: String(item.quantity),
         name: item.name,
       })),
+      // A single SHIPMENT fulfillment -- checkout only collects one shipping
+      // address today, no pickup/delivery choice yet (see checkout action).
+      fulfillments: [
+        {
+          type: "SHIPMENT",
+          shipmentDetails: {
+            recipient: {
+              displayName: params.shipping.displayName,
+              emailAddress: params.shipping.emailAddress,
+              phoneNumber: params.shipping.phoneNumber,
+              address: {
+                addressLine1: params.shipping.address.addressLine1,
+                addressLine2: params.shipping.address.addressLine2 ?? undefined,
+                locality: params.shipping.address.locality,
+                administrativeDistrictLevel1: params.shipping.address.administrativeDistrictLevel1,
+                postalCode: params.shipping.address.postalCode,
+                // Free-text on our end (see checkout form); Square's type is
+                // a closed ISO-3166 union, so this is a deliberate widen.
+                country: params.shipping.address.country as Square.Country,
+              },
+            },
+          },
+        },
+      ],
     },
   });
 
