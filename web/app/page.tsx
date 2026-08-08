@@ -218,7 +218,12 @@ export default async function Home({
           <h2 className="section-label">Recently viewed</h2>
           <div className="recent-rail-scroll">
             {recentProducts.map((p) => (
-              <Link key={p.sku} href={`/scent/${p.sku}`} className="recent-item">
+              <Link
+                key={p.sku}
+                href={`/scent/${p.sku}`}
+                className="recent-item"
+                prefetch={false}
+              >
                 <BottleGlyph
                   sku={p.sku}
                   brand={p.brand}
@@ -269,9 +274,14 @@ export default async function Home({
           </div>
 
           {totalPages > 1 && (
+            // prefetch={false}: each of these runs the full home-page query
+            // set (products + count + families + genders + concentrations)
+            // -- prefetching them on every grid view means two extra full
+            // page loads' worth of queries running for pages nobody's
+            // asked for yet.
             <nav className="pagination" aria-label="Pagination">
               {page > 1 ? (
-                <Link href={pageHref(page - 1)} className="pagination-link">
+                <Link href={pageHref(page - 1)} className="pagination-link" prefetch={false}>
                   ← Previous
                 </Link>
               ) : (
@@ -283,7 +293,7 @@ export default async function Home({
                 Page {page} of {totalPages}
               </span>
               {page < totalPages ? (
-                <Link href={pageHref(page + 1)} className="pagination-link">
+                <Link href={pageHref(page + 1)} className="pagination-link" prefetch={false}>
                   Next →
                 </Link>
               ) : (

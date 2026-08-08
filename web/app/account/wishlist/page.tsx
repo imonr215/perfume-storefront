@@ -41,7 +41,12 @@ export default async function WishlistPage() {
               <div className="cart-row-body">
                 <div className="cart-info">
                   <p className="brand">{item.brand}</p>
-                  <Link href={`/scent/${item.sku}`} className="cart-name" style={{ display: "block" }}>
+                  <Link
+                    href={`/scent/${item.sku}`}
+                    className="cart-name"
+                    style={{ display: "block" }}
+                    prefetch={false}
+                  >
                     {item.product_name}
                   </Link>
                   {item.size && <p className="spec">{item.size}</p>}

@@ -39,8 +39,14 @@ export function ProductCard({ product }: { product: Product }) {
       {/* Covers the whole card so it's one click target to the detail page;
           the visible content stays in normal flow underneath it (see
           .card-link in globals.css) -- "Quick view" sits at a higher
-          z-index so it stays independently clickable. */}
-      <Link href={href} className="card-link">
+          z-index so it stays independently clickable. prefetch={false}:
+          Next.js prefetches every visible Link by default, and a grid page
+          has dozens of these on screen at once -- each one is a detail
+          page with several of its own queries (product, similar products,
+          session, wishlist status), so left on default this was firing off
+          dozens of extra DB-backed page loads on every grid view for no
+          reason, competing for the same limited Postgres connections. */}
+      <Link href={href} className="card-link" prefetch={false}>
         <span className="sr-only">{`${product.brand} ${product.product_name}`}</span>
       </Link>
 
@@ -122,7 +128,7 @@ function QuickViewModal({
 
           <AddToCartForm sku={product.sku} quantityId="quickview-quantity" onSubmitted={onClose} />
 
-          <Link href={href} className="quickview-detail-link" onClick={onClose}>
+          <Link href={href} className="quickview-detail-link" onClick={onClose} prefetch={false}>
             View full details →
           </Link>
         </div>
