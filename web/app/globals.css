@@ -224,31 +224,23 @@ a { color: inherit; text-decoration: none; }
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
-/* --tint is set per-button in app/page.tsx via hueFor(family) -- the same
-   hue the bottle glyph's tri-band tint and the pyramid rail already use, so
-   a pill's color always matches what you'd see on that family's bottles.
-   The plain `background: var(--paper)` line before the color-mix() one is
-   a fallback for browsers that don't support color-mix -- an invalid value
-   is ignored entirely, leaving the earlier declaration in effect. */
 .family {
-  --tint: var(--edge);
   flex: 0 0 auto;
-  border: 1px solid var(--tint);
+  border: 1px solid var(--edge);
   background: var(--paper);
-  background: color-mix(in srgb, var(--tint) 16%, var(--paper));
   border-radius: 999px;
   padding: 0.42rem 0.95rem;
   font: inherit;
   font-size: 0.9rem;
-  color: var(--tint);
+  color: var(--ink-soft);
   cursor: pointer;
   white-space: nowrap;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .family:hover { border-color: var(--amber); color: var(--ink); }
 .family[data-active="true"] {
-  background: var(--tint);
-  border-color: var(--tint);
+  background: var(--ink);
+  border-color: var(--ink);
   color: var(--paper);
 }
 
