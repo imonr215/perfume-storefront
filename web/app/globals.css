@@ -980,8 +980,12 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 760px) {
   .checkout-grid { grid-template-columns: 1fr; gap: 2rem; }
   .order-summary { position: static; }
-  .cart-row { grid-template-columns: 1fr; gap: 0.6rem; }
-  .cart-glyph { display: none; }
+  /* Keep the glyph rather than hiding it -- give it its own column,
+     spanning every row stacked in the second column, so the thumbnail
+     sits beside the name/qty/price/remove stack instead of shrinking
+     everything else to fit five items across a narrow screen. */
+  .cart-row { grid-template-columns: auto 1fr; grid-auto-rows: auto; gap: 0.4rem 1rem; }
+  .cart-glyph { grid-row: 1 / -1; align-self: start; width: 56px; height: 75px; }
   .cart-line-price { text-align: left; }
   .order-history-row a { grid-template-columns: 1fr; gap: 0.3rem; }
   .address-card { flex-direction: column; }
