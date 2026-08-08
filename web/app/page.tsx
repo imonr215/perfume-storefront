@@ -1,6 +1,16 @@
 import Link from "next/link";
-import { getConcentrations, getFamilies, getGenders, getProducts, hueFor } from "@/lib/products";
+import {
+  getConcentrations,
+  getFamilies,
+  getGenders,
+  getProducts,
+  getProductsBySkus,
+  hueFor,
+  price,
+} from "@/lib/products";
+import { getRecentlyViewedSkus } from "@/lib/recently-viewed";
 import { ProductCard } from "@/app/components/product-card";
+import { BottleGlyph } from "@/app/components/bottle-glyph";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +47,7 @@ export default async function Home({
   const selectFilterCount = [gender, concentration, priceBucket].filter(Boolean).length;
   const activeFilterCount = [q, family, gender, concentration, priceBucket].filter(Boolean).length;
 
-  const [products, families, genders, concentrations] = await Promise.all([
+  const [products, families, genders, concentrations, recentSkus] = await Promise.all([
     getProducts({
       family,
       gender,
@@ -49,7 +59,14 @@ export default async function Home({
     getFamilies(),
     getGenders(),
     getConcentrations(),
+    getRecentlyViewedSkus(),
   ]);
+
+  // Only on the default, unfiltered landing view -- once someone's actively
+  // searching or filtering, a "recently viewed" rail is just clutter above
+  // the results they asked for.
+  const recentProducts =
+    activeFilterCount === 0 && recentSkus.length > 0 ? await getProductsBySkus(recentSkus) : [];
 
   return (
     <main className="wrap">
@@ -164,6 +181,27 @@ export default async function Home({
           ))}
         </nav>
       </form>
+
+      {recentProducts.length > 0 && (
+        <section className="recent-rail">
+          <h2 className="section-label">Recently viewed</h2>
+          <div className="recent-rail-scroll">
+            {recentProducts.map((p) => (
+              <Link key={p.sku} href={`/scent/${p.sku}`} className="recent-item">
+                <BottleGlyph
+                  sku={p.sku}
+                  brand={p.brand}
+                  family={p.scent_family}
+                  variant="recent"
+                  className="recent-item-glyph"
+                />
+                <p className="recent-item-name">{p.product_name}</p>
+                <p className="recent-item-price">{price(p.price_cents)}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <p className="count">
         {products.length} {products.length === 1 ? "bottle" : "bottles"}

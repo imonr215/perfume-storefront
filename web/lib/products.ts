@@ -106,3 +106,44 @@ export async function getProduct(sku: string): Promise<Product | null> {
   `;
   return rows[0] ?? null;
 }
+
+/** Preserves the order of `skus` (most-recent-first for recently-viewed
+ *  rails) rather than whatever order Postgres happens to return. */
+export async function getProductsBySkus(skus: string[]): Promise<Product[]> {
+  if (skus.length === 0) return [];
+  const rows = await sql<Product[]>`
+    SELECT sku, brand, product_name, concentration, size, price_cents,
+           scent_family, gender, top_notes, heart_notes, base_notes, description
+    FROM dim_products
+    WHERE is_active AND sku = ANY(${skus})
+  `;
+  const bySku = new Map(rows.map((r) => [r.sku, r]));
+  return skus.map((sku) => bySku.get(sku)).filter((p): p is Product => Boolean(p));
+}
+
+/** Same family, or shares at least one top/heart/base note -- same-family
+ *  matches are ranked first, notes-only overlap fills in the rest. Products
+ *  with neither in common are excluded rather than padding out to a fixed
+ *  count with unrelated bottles. */
+export async function getSimilarProducts(
+  sku: string,
+  family: string | null,
+  notes: string[]
+): Promise<Product[]> {
+  if (!family && notes.length === 0) return [];
+  return sql<Product[]>`
+    SELECT sku, brand, product_name, concentration, size, price_cents,
+           scent_family, gender, top_notes, heart_notes, base_notes, description
+    FROM dim_products
+    WHERE is_active
+      AND sku != ${sku}
+      AND (
+        scent_family = ${family}
+        OR (top_notes && ${notes})
+        OR (heart_notes && ${notes})
+        OR (base_notes && ${notes})
+      )
+    ORDER BY (CASE WHEN scent_family = ${family} THEN 0 ELSE 1 END), random()
+    LIMIT 4
+  `;
+}

@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct, hueFor, price } from "@/lib/products";
+import { getProduct, getSimilarProducts, hueFor, price } from "@/lib/products";
 import { addToCartAction } from "@/lib/actions/cart";
+import { toggleWishlistAction } from "@/lib/actions/wishlist";
+import { getSession } from "@/lib/auth";
+import { isWishlisted } from "@/lib/wishlist";
 import { BottleGlyph } from "@/app/components/bottle-glyph";
 import { NoteIcon } from "@/app/components/note-icon";
+import { ProductCard } from "@/app/components/product-card";
+import { SubmitButton } from "@/app/components/submit-button";
+import { RecordView } from "./record-view";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +30,20 @@ export default async function ScentPage({
 
   const hue = hueFor(p.scent_family);
 
+  const [session, similar] = await Promise.all([
+    getSession(),
+    getSimilarProducts(p.sku, p.scent_family, [
+      ...(p.top_notes ?? []),
+      ...(p.heart_notes ?? []),
+      ...(p.base_notes ?? []),
+    ]),
+  ]);
+  const wishlisted = session ? await isWishlisted(session.id, p.sku) : false;
+
   return (
     <main className="wrap">
+      <RecordView sku={p.sku} />
+
       <Link href="/" className="back">
         ← Back to the shelf
       </Link>
@@ -68,6 +86,20 @@ export default async function ScentPage({
               Add to cart
             </button>
           </form>
+
+          {session ? (
+            <form action={toggleWishlistAction} className="wishlist-form">
+              <input type="hidden" name="sku" value={p.sku} />
+              <input type="hidden" name="path" value={`/scent/${p.sku}`} />
+              <SubmitButton className="wishlist-toggle" pendingLabel="…">
+                {wishlisted ? "♥ Saved" : "♡ Save for later"}
+              </SubmitButton>
+            </form>
+          ) : (
+            <Link href="/login" className="wishlist-toggle wishlist-toggle-link">
+              ♡ Save for later
+            </Link>
+          )}
         </div>
 
         <section className="pyramid">
@@ -95,6 +127,17 @@ export default async function ScentPage({
           })}
         </section>
       </div>
+
+      {similar.length > 0 && (
+        <section className="similar-section">
+          <h2 className="section-label">You might also like</h2>
+          <div className="grid">
+            {similar.map((sp) => (
+              <ProductCard key={sp.sku} product={sp} />
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

@@ -329,3 +329,16 @@ CREATE INDEX IF NOT EXISTS ix_customer_addresses_customer
 -- default address per customer.
 CREATE UNIQUE INDEX IF NOT EXISTS ux_customer_addresses_default
     ON store_customer_addresses (customer_id) WHERE is_default;
+
+-- Wishlist: logged-in only (unlike the cart, no guest/cookie version --
+-- saving things for later only really makes sense once it follows you
+-- across devices, which requires an account).
+CREATE TABLE IF NOT EXISTS store_wishlist_items (
+    customer_id UUID        NOT NULL REFERENCES store_customers (id) ON DELETE CASCADE,
+    sku         TEXT        NOT NULL REFERENCES dim_products (sku),
+    added_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (customer_id, sku)
+);
+
+CREATE INDEX IF NOT EXISTS ix_wishlist_items_customer
+    ON store_wishlist_items (customer_id, added_at DESC);
