@@ -617,7 +617,6 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink);
 }
 .cart-flyout-view:hover { border-color: var(--amber); color: var(--amber); }
-.cart-flyout-checkout { flex: 1; text-align: center; margin-top: 0; padding: 0.55rem 0.9rem; font-size: 0.85rem; }
 .site-nav-logout button {
   background: none;
   border: none;
@@ -723,6 +722,11 @@ a { color: inherit; text-decoration: none; }
    only have 4 children where a cart row has 5 -- override the column
    template rather than pad the markup with an empty spacer div. */
 .wishlist-row { grid-template-columns: auto 1fr auto auto; }
+/* On desktop the body wrapper is invisible to layout -- its children (info,
+   qty form, price, remove form) sit directly in .cart-row's column grid,
+   same as before the wrapper existed. Mobile overrides this to a real flex
+   column (see media query below). */
+.cart-row-body { display: contents; }
 .cart-name {
   font-family: var(--font-display), Georgia, serif;
   font-size: var(--step-1);
@@ -980,13 +984,14 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 760px) {
   .checkout-grid { grid-template-columns: 1fr; gap: 2rem; }
   .order-summary { position: static; }
-  /* Bottle on the right at a real size, not a small icon: give it an
-     explicit column + row span (grid placement resolves explicit items
-     first, so this claims column 2 for every row before the rest of the
-     row's children auto-place), and let name/qty/price/remove stack in
-     column 1 beside it. */
-  .cart-row { grid-template-columns: 1fr auto; grid-auto-rows: auto; gap: 0.4rem 1.2rem; }
-  .cart-glyph { grid-column: 2; grid-row: 1 / -1; align-self: center; width: 104px; height: 139px; }
+  /* Bottle on the right at a real size, not a small icon: one grid row
+     with the glyph in column 2 and the body wrapper (now a flex column,
+     not display:contents) in column 1, so the row's height is set by
+     whichever side is taller instead of the glyph's height getting
+     divided up across four separately-tracked rows. */
+  .cart-row { grid-template-columns: 1fr auto; align-items: center; gap: 1.2rem; }
+  .cart-glyph { grid-column: 2; width: 104px; height: 139px; }
+  .cart-row-body { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem; }
   .cart-line-price { text-align: left; }
   .order-history-row a { grid-template-columns: 1fr; gap: 0.3rem; }
   .address-card { flex-direction: column; }

@@ -100,15 +100,13 @@ export default async function RootLayout({
                       </div>
                     </>
                   )}
+                  {/* Cart page only, not a Checkout shortcut here -- this
+                      preview never re-checks stock/pricing, so it shouldn't
+                      be a launch pad straight into payment. */}
                   <div className="cart-flyout-actions">
                     <Link href="/cart" className="cart-flyout-view">
                       View cart
                     </Link>
-                    {cartItems.length > 0 && (
-                      <Link href="/checkout" className="buy cart-flyout-checkout">
-                        Checkout
-                      </Link>
-                    )}
                   </div>
                 </div>
               </details>

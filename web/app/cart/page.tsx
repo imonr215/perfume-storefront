@@ -43,44 +43,52 @@ export default async function CartPage() {
                   className="cart-glyph"
                 />
 
-                <div className="cart-info">
-                  <p className="brand">{item.brand}</p>
-                  <p className="cart-name">{item.product_name}</p>
-                  {item.size && <p className="spec">{item.size}</p>}
-                  {!item.is_active && (
-                    <p className="cart-warning">No longer available. Please remove it.</p>
-                  )}
+                {/* display:contents on desktop -- children act as direct
+                    grid cells in .cart-row's 5-column layout. On mobile it
+                    switches to a flex column instead, so the glyph gets one
+                    grid row sized to its own content rather than that
+                    height being divided across four separately-tracked
+                    rows (which was stretching gaps between them). */}
+                <div className="cart-row-body">
+                  <div className="cart-info">
+                    <p className="brand">{item.brand}</p>
+                    <p className="cart-name">{item.product_name}</p>
+                    {item.size && <p className="spec">{item.size}</p>}
+                    {!item.is_active && (
+                      <p className="cart-warning">No longer available. Please remove it.</p>
+                    )}
+                  </div>
+
+                  <form action={updateCartItemAction} className="cart-qty-form">
+                    <input type="hidden" name="sku" value={item.sku} />
+                    <label className="sr-only" htmlFor={`qty-${item.sku}`}>
+                      Quantity
+                    </label>
+                    <input
+                      id={`qty-${item.sku}`}
+                      name="quantity"
+                      type="number"
+                      min={1}
+                      max={20}
+                      defaultValue={item.quantity}
+                      className="cart-qty"
+                    />
+                    <SubmitButton className="cart-update" pendingLabel="…">
+                      Update
+                    </SubmitButton>
+                  </form>
+
+                  <p className="cart-line-price">
+                    {price((item.price_cents ?? 0) * item.quantity)}
+                  </p>
+
+                  <form action={removeFromCartAction}>
+                    <input type="hidden" name="sku" value={item.sku} />
+                    <SubmitButton className="cart-remove" pendingLabel="…">
+                      Remove
+                    </SubmitButton>
+                  </form>
                 </div>
-
-                <form action={updateCartItemAction} className="cart-qty-form">
-                  <input type="hidden" name="sku" value={item.sku} />
-                  <label className="sr-only" htmlFor={`qty-${item.sku}`}>
-                    Quantity
-                  </label>
-                  <input
-                    id={`qty-${item.sku}`}
-                    name="quantity"
-                    type="number"
-                    min={1}
-                    max={20}
-                    defaultValue={item.quantity}
-                    className="cart-qty"
-                  />
-                  <SubmitButton className="cart-update" pendingLabel="…">
-                    Update
-                  </SubmitButton>
-                </form>
-
-                <p className="cart-line-price">
-                  {price((item.price_cents ?? 0) * item.quantity)}
-                </p>
-
-                <form action={removeFromCartAction}>
-                  <input type="hidden" name="sku" value={item.sku} />
-                  <SubmitButton className="cart-remove" pendingLabel="…">
-                    Remove
-                  </SubmitButton>
-                </form>
               </li>
             ))}
           </ul>

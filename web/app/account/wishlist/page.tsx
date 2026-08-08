@@ -38,21 +38,23 @@ export default async function WishlistPage() {
                 variant="wishlist"
                 className="cart-glyph"
               />
-              <div>
-                <p className="brand">{item.brand}</p>
-                <Link href={`/scent/${item.sku}`} className="cart-name" style={{ display: "block" }}>
-                  {item.product_name}
-                </Link>
-                {item.size && <p className="spec">{item.size}</p>}
+              <div className="cart-row-body">
+                <div className="cart-info">
+                  <p className="brand">{item.brand}</p>
+                  <Link href={`/scent/${item.sku}`} className="cart-name" style={{ display: "block" }}>
+                    {item.product_name}
+                  </Link>
+                  {item.size && <p className="spec">{item.size}</p>}
+                </div>
+                <p className="cart-line-price">{price(item.price_cents)}</p>
+                <form action={toggleWishlistAction}>
+                  <input type="hidden" name="sku" value={item.sku} />
+                  <input type="hidden" name="path" value="/account/wishlist" />
+                  <SubmitButton className="cart-remove" pendingLabel="…">
+                    Remove
+                  </SubmitButton>
+                </form>
               </div>
-              <p className="cart-line-price">{price(item.price_cents)}</p>
-              <form action={toggleWishlistAction}>
-                <input type="hidden" name="sku" value={item.sku} />
-                <input type="hidden" name="path" value="/account/wishlist" />
-                <SubmitButton className="cart-remove" pendingLabel="…">
-                  Remove
-                </SubmitButton>
-              </form>
             </li>
           ))}
         </ul>
