@@ -597,6 +597,23 @@ a { color: inherit; text-decoration: none; }
 }
 .cart-flyout-qty { font-size: 0.78rem; color: var(--ink-soft); margin: 0; }
 .cart-flyout-price { font-size: 0.85rem; white-space: nowrap; margin: 0; }
+.cart-flyout-remove {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.cart-flyout-remove:hover { border-color: var(--amber); color: var(--amber); }
 .cart-flyout-summary {
   display: flex;
   justify-content: space-between;
@@ -990,8 +1007,21 @@ a { color: inherit; text-decoration: none; }
      whichever side is taller instead of the glyph's height getting
      divided up across four separately-tracked rows. */
   .cart-row { grid-template-columns: 1fr auto; align-items: center; gap: 1.2rem; }
-  .cart-glyph { grid-column: 2; width: 104px; height: 139px; }
-  .cart-row-body { display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+  /* Both cells pinned to grid-row: 1 explicitly -- without this, the grid
+     auto-placement algorithm advances its shared row cursor after placing
+     an item with an explicit column (the glyph), so the next
+     automatically-positioned item (the body) lands in row 2 instead of
+     sharing row 1 with it. That's what was pushing the text block down
+     below the glyph instead of beside/centered against it. */
+  .cart-glyph { grid-column: 2; grid-row: 1; align-self: center; width: 104px; height: 139px; }
+  .cart-row-body {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
   .cart-line-price { text-align: left; }
   .order-history-row a { grid-template-columns: 1fr; gap: 0.3rem; }
   .address-card { flex-direction: column; }

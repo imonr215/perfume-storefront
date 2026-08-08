@@ -4,9 +4,11 @@ import { Fraunces, Karla } from "next/font/google";
 import { getSession } from "@/lib/auth";
 import { getCart } from "@/lib/cart";
 import { logoutAction } from "@/lib/actions/auth";
+import { removeFromCartAction } from "@/lib/actions/cart";
 import { price } from "@/lib/products";
 import { BottleGlyph } from "@/app/components/bottle-glyph";
 import { CartFlyout } from "@/app/components/cart-flyout";
+import { SubmitButton } from "@/app/components/submit-button";
 import "./globals.css";
 
 /* Fraunces for display: a soft optical serif — warm and handmade rather than
@@ -92,6 +94,13 @@ export default async function RootLayout({
                             <p className="cart-flyout-price">
                               {price((item.price_cents ?? 0) * item.quantity)}
                             </p>
+                            <form action={removeFromCartAction}>
+                              <input type="hidden" name="sku" value={item.sku} />
+                              <SubmitButton className="cart-flyout-remove" pendingLabel="…">
+                                <span aria-hidden="true">×</span>
+                                <span className="sr-only">Remove {item.product_name}</span>
+                              </SubmitButton>
+                            </form>
                           </li>
                         ))}
                       </ul>
