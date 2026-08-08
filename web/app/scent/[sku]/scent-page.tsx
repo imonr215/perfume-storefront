@@ -69,37 +69,41 @@ export default async function ScentPage({
           <p className="detail-price">{price(p.price_cents)}</p>
 
           {/* Card details never touch our server: checkout tokenizes with
-              Square's Web Payments SDK client-side. */}
-          <form action={addToCartAction} className="add-to-bag">
-            <input type="hidden" name="sku" value={p.sku} />
-            <label className="sr-only" htmlFor="quantity">
-              Quantity
-            </label>
-            <select id="quantity" name="quantity" defaultValue="1" className="add-to-bag-qty">
-              {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <button className="buy" type="submit">
-              Add to cart
-            </button>
-          </form>
-
-          {session ? (
-            <form action={toggleWishlistAction} className="wishlist-form">
+              Square's Web Payments SDK client-side. Two separate <form>s
+              side by side (not nested -- HTML forbids that) so "add to
+              cart" and "save for later" submit independently. */}
+          <div className="detail-actions">
+            <form action={addToCartAction} className="add-to-bag">
               <input type="hidden" name="sku" value={p.sku} />
-              <input type="hidden" name="path" value={`/scent/${p.sku}`} />
-              <SubmitButton className="wishlist-toggle" pendingLabel="…">
-                {wishlisted ? "♥ Saved" : "♡ Save for later"}
-              </SubmitButton>
+              <label className="sr-only" htmlFor="quantity">
+                Quantity
+              </label>
+              <select id="quantity" name="quantity" defaultValue="1" className="add-to-bag-qty">
+                {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <button className="buy" type="submit">
+                Add to cart
+              </button>
             </form>
-          ) : (
-            <Link href="/login" className="wishlist-toggle wishlist-toggle-link">
-              ♡ Save for later
-            </Link>
-          )}
+
+            {session ? (
+              <form action={toggleWishlistAction} className="wishlist-form">
+                <input type="hidden" name="sku" value={p.sku} />
+                <input type="hidden" name="path" value={`/scent/${p.sku}`} />
+                <SubmitButton className="wishlist-toggle" pendingLabel="…">
+                  {wishlisted ? "♥ Saved" : "♡ Save for later"}
+                </SubmitButton>
+              </form>
+            ) : (
+              <Link href="/login" className="wishlist-toggle wishlist-toggle-link">
+                ♡ Save for later
+              </Link>
+            )}
+          </div>
         </div>
 
         <section className="pyramid">

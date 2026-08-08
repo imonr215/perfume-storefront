@@ -644,13 +644,18 @@ a { color: inherit; text-decoration: none; }
   margin: 0 0 1rem;
 }
 
-/* --- Add to bag (scent detail) --------------------------------------------- */
-.add-to-bag {
+/* --- Add to bag + save for later (scent detail) -----------------------------
+   Two independent <form>s (see scent-page.tsx) laid out as one row --
+   .detail-actions carries the shared top margin and wraps them onto their
+   own line if the viewport's too narrow for both at once. */
+.detail-actions {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  flex-wrap: wrap;
+  gap: 0.9rem;
   margin-top: 1.8rem;
 }
+.add-to-bag { display: flex; align-items: center; gap: 0.7rem; }
 .add-to-bag .buy { margin-top: 0; }
 .add-to-bag-qty {
   border: 1px solid var(--edge);
@@ -661,10 +666,9 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink);
 }
 
-.wishlist-form { margin-top: 0.8rem; }
 .wishlist-toggle {
   display: inline-block;
-  background: none;
+  background: var(--paper);
   border: 1px solid var(--edge);
   border-radius: 999px;
   padding: 0.6rem 1.2rem;
