@@ -7,7 +7,6 @@ import {
   getProductsBySkus,
   getProductsCount,
   getRandomProducts,
-  hueFor,
   price,
   PRODUCTS_PAGE_SIZE,
 } from "@/lib/products";
@@ -191,7 +190,6 @@ export default async function Home({
             value=""
             className="family"
             data-active={!family}
-            style={{ "--tint": "var(--ink)" } as React.CSSProperties}
           >
             Everything
           </button>
@@ -203,7 +201,6 @@ export default async function Home({
               value={f}
               className="family"
               data-active={family === f}
-              style={{ "--tint": hueFor(f) } as React.CSSProperties}
             >
               {f}
             </button>
