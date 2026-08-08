@@ -5,8 +5,11 @@ import {
   getGenders,
   getProducts,
   getProductsBySkus,
+  getProductsCount,
+  getRandomProducts,
   hueFor,
   price,
+  PRODUCTS_PAGE_SIZE,
 } from "@/lib/products";
 import { getRecentlyViewedSkus } from "@/lib/recently-viewed";
 import { ProductCard } from "@/app/components/product-card";
@@ -28,6 +31,7 @@ type SearchParams = {
   gender?: string;
   concentration?: string;
   price?: string;
+  page?: string;
 };
 
 export default async function Home({
@@ -47,27 +51,51 @@ export default async function Home({
 
   const selectFilterCount = [gender, concentration, priceBucket].filter(Boolean).length;
   const activeFilterCount = [q, family, gender, concentration, priceBucket].filter(Boolean).length;
+  const page = Math.max(1, Number(sp.page) || 1);
 
-  const [products, families, genders, concentrations, recentSkus] = await Promise.all([
-    getProducts({
-      family,
-      gender,
-      concentration,
-      q,
-      priceMinCents: bucket?.min,
-      priceMaxCents: bucket?.max,
-    }),
+  const productFilters = {
+    family,
+    gender,
+    concentration,
+    q,
+    priceMinCents: bucket?.min,
+    priceMaxCents: bucket?.max,
+  };
+
+  const [products, total, families, genders, concentrations, recentSkus] = await Promise.all([
+    getProducts(productFilters, page),
+    getProductsCount(productFilters),
     getFamilies(),
     getGenders(),
     getConcentrations(),
     getRecentlyViewedSkus(),
   ]);
+  const totalPages = Math.max(1, Math.ceil(total / PRODUCTS_PAGE_SIZE));
 
   // Only on the default, unfiltered landing view -- once someone's actively
   // searching or filtering, a "recently viewed" rail is just clutter above
   // the results they asked for.
   const recentProducts =
     activeFilterCount === 0 && recentSkus.length > 0 ? await getProductsBySkus(recentSkus) : [];
+
+  // A dead-end search/filter combo shouldn't be a dead end for the visit --
+  // offer a few random bottles to keep browsing instead of just stopping.
+  const fallbackProducts = products.length === 0 ? await getRandomProducts(4) : [];
+
+  // Pagination links need every OTHER current param preserved, with just
+  // `page` swapped -- built from the raw searchParams rather than the
+  // normalized q/family/etc. above, so anything not explicitly modeled
+  // here (there isn't any today, but this stays correct if that changes)
+  // still round-trips.
+  function pageHref(n: number): string {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) {
+      if (key !== "page" && value) params.set(key, value);
+    }
+    if (n > 1) params.set("page", String(n));
+    const qs = params.toString();
+    return qs ? `/?${qs}` : "/";
+  }
 
   return (
     <main className="wrap">
@@ -207,25 +235,65 @@ export default async function Home({
       )}
 
       <p className="count">
-        {products.length} {products.length === 1 ? "bottle" : "bottles"}
+        {total} {total === 1 ? "bottle" : "bottles"}
         {family ? ` in ${family}` : ""}
         {q ? ` matching “${q}”` : ""}
       </p>
 
       {products.length === 0 ? (
-        <p className="empty">
-          Nothing matches those filters yet. Try loosening one, or{" "}
-          <Link href="/" style={{ color: "var(--amber)" }}>
-            see everything
-          </Link>
-          .
-        </p>
+        <>
+          <p className="empty">
+            Nothing matches those filters yet. Try loosening one, or{" "}
+            <Link href="/" style={{ color: "var(--amber)" }}>
+              see everything
+            </Link>
+            .
+          </p>
+          {fallbackProducts.length > 0 && (
+            <section className="similar-section">
+              <h2 className="section-label">You might like</h2>
+              <div className="grid">
+                {fallbackProducts.map((p) => (
+                  <ProductCard key={p.sku} product={p} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       ) : (
-        <div className="grid">
-          {products.map((p) => (
-            <ProductCard key={p.sku} product={p} />
-          ))}
-        </div>
+        <>
+          <div className="grid">
+            {products.map((p) => (
+              <ProductCard key={p.sku} product={p} />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <nav className="pagination" aria-label="Pagination">
+              {page > 1 ? (
+                <Link href={pageHref(page - 1)} className="pagination-link">
+                  ← Previous
+                </Link>
+              ) : (
+                <span className="pagination-link" aria-disabled="true">
+                  ← Previous
+                </span>
+              )}
+              <span className="pagination-status">
+                Page {page} of {totalPages}
+              </span>
+              {page < totalPages ? (
+                <Link href={pageHref(page + 1)} className="pagination-link">
+                  Next →
+                </Link>
+              ) : (
+                <span className="pagination-link" aria-disabled="true">
+                  Next →
+                </span>
+              )}
+            </nav>
+          )}
+        </>
       )}
     </main>
   );

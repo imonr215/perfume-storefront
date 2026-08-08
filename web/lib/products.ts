@@ -28,7 +28,11 @@ export type ProductFilters = {
   priceMaxCents?: number;
 };
 
-export async function getProducts(filters: ProductFilters = {}): Promise<Product[]> {
+export const PRODUCTS_PAGE_SIZE = 24;
+
+// Shared by getProducts and getProductsCount so the two can never drift
+// apart on what counts as a match.
+function buildProductsWhere(filters: ProductFilters) {
   const conditions = [sql`is_active`];
 
   if (filters.family) conditions.push(sql`scent_family = ${filters.family}`);
@@ -55,7 +59,15 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   // Fragments compose: each condition is its own sql`` template, folded
   // together into a single "a AND b AND c" fragment before being dropped
   // into the WHERE clause below.
-  const where = conditions.reduce((acc, cond) => sql`${acc} AND ${cond}`);
+  return conditions.reduce((acc, cond) => sql`${acc} AND ${cond}`);
+}
+
+export async function getProducts(
+  filters: ProductFilters = {},
+  page = 1
+): Promise<Product[]> {
+  const where = buildProductsWhere(filters);
+  const offset = (Math.max(1, page) - 1) * PRODUCTS_PAGE_SIZE;
 
   return sql<Product[]>`
     SELECT sku, brand, product_name, concentration, size, price_cents,
@@ -63,6 +75,29 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     FROM dim_products
     WHERE ${where}
     ORDER BY brand, product_name
+    LIMIT ${PRODUCTS_PAGE_SIZE} OFFSET ${offset}
+  `;
+}
+
+export async function getProductsCount(filters: ProductFilters = {}): Promise<number> {
+  const where = buildProductsWhere(filters);
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM dim_products WHERE ${where}
+  `;
+  return rows[0]?.count ?? 0;
+}
+
+/** Unfiltered grab-bag for the "nothing matched" fallback -- random rather
+ *  than always the same alphabetical slice, so a dead-end search still
+ *  turns into a bit of browsing instead of the same four bottles every time. */
+export async function getRandomProducts(limit: number): Promise<Product[]> {
+  return sql<Product[]>`
+    SELECT sku, brand, product_name, concentration, size, price_cents,
+           scent_family, gender, top_notes, heart_notes, base_notes, description
+    FROM dim_products
+    WHERE is_active
+    ORDER BY random()
+    LIMIT ${limit}
   `;
 }
 

@@ -65,6 +65,17 @@ export default async function CartPage() {
                       Quantity
                     </label>
                     <input
+                      // Keyed by the current quantity so React remounts the
+                      // input (picking up a fresh defaultValue) whenever it
+                      // changes server-side. Without this, React 19 resets
+                      // the form's uncontrolled fields to their *original*
+                      // mount-time defaultValue after every action -- so
+                      // after "Update", the input snapped back to whatever
+                      // quantity was showing when the cart page first
+                      // loaded, even though the price/subtotal (driven by
+                      // fresh server props, not an uncontrolled input)
+                      // correctly reflected the new quantity.
+                      key={item.quantity}
                       id={`qty-${item.sku}`}
                       name="quantity"
                       type="number"
