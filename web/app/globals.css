@@ -102,6 +102,82 @@ a { color: inherit; text-decoration: none; }
   font-size: var(--step-1);
 }
 
+/* --- Search + filters ------------------------------------------------------
+   One <form> start to finish (see app/page.tsx) -- the search box, the
+   selects, and the family pills (each its own type="submit" button) all
+   submit together, so picking a family never discards a search term or a
+   gender/concentration/price selection already sitting in the form.
+   ------------------------------------------------------------------------ */
+.filter-form { padding-top: 0.5rem; }
+
+.search-row {
+  display: flex;
+  gap: 0.6rem;
+  max-width: 34rem;
+}
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--edge);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 0.72rem 1.1rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.search-input:focus-visible { border-color: var(--amber); }
+.search-submit {
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--honey);
+  border-radius: 999px;
+  padding: 0.6rem 1.3rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.search-submit:hover { background: var(--amber); border-color: var(--amber); }
+
+.filter-selects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 0 0;
+}
+.filter-field select {
+  border: 1px solid var(--edge);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.filter-field select:focus-visible { border-color: var(--amber); }
+.filter-apply {
+  border: 1px solid var(--edge);
+  background: none;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.filter-apply:hover { border-color: var(--amber); color: var(--ink); }
+.filter-clear {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.filter-clear:hover { color: var(--amber); }
+
 /* --- Family filter ------------------------------------------------------- */
 .families {
   display: flex;
@@ -115,8 +191,10 @@ a { color: inherit; text-decoration: none; }
   background: var(--paper);
   border-radius: 999px;
   padding: 0.42rem 0.95rem;
+  font: inherit;
   font-size: 0.9rem;
   color: var(--ink-soft);
+  cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .family:hover { border-color: var(--amber); color: var(--ink); }
