@@ -27,7 +27,14 @@ const globalForSql = globalThis as unknown as {
 export const sql =
   globalForSql._sql ??
   postgres(connectionString, {
-    max: 5,
+    // A single page render can need more than a handful of connections at
+    // once -- app/layout.tsx alone fires 2 (getSession + getCart) on every
+    // page, and app/page.tsx fires 6 more of its own in one Promise.all
+    // (products, count, families, genders, concentrations, recently-viewed).
+    // That's 8 concurrent queries for one home-page load; max previously
+    // capped this pool at 5, so every load queued on itself before any
+    // second tab or double-click even entered the picture.
+    max: 20,
     idle_timeout: 20,
     connect_timeout: 10,
     // Supabase's pooler doesn't support prepared statements in transaction mode.

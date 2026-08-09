@@ -56,6 +56,7 @@ export function CheckoutForm({
   const [cardStatus, setCardStatus] = useState<"loading" | "ready" | "error">("loading");
   const [cardError, setCardError] = useState<string | null>(null);
   const [createAccount, setCreateAccount] = useState(false);
+  const [fulfillmentType, setFulfillmentType] = useState<"SHIPMENT" | "PICKUP">("SHIPMENT");
 
   const cardRef = useRef<SquareCard | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -127,6 +128,30 @@ export function CheckoutForm({
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="form checkout-form" noValidate>
       <input type="hidden" name="sourceId" />
+      <input type="hidden" name="fulfillmentType" value={fulfillmentType} />
+
+      <fieldset>
+        <legend>How do you want it?</legend>
+        <div className="fulfillment-toggle" role="group" aria-label="Fulfillment method">
+          <button
+            type="button"
+            data-active={fulfillmentType === "SHIPMENT"}
+            onClick={() => setFulfillmentType("SHIPMENT")}
+          >
+            Ship to me
+          </button>
+          <button
+            type="button"
+            data-active={fulfillmentType === "PICKUP"}
+            onClick={() => setFulfillmentType("PICKUP")}
+          >
+            Pick up in store
+          </button>
+        </div>
+        {fulfillmentType === "PICKUP" && (
+          <p className="field-hint">Ready at our kiosk in about 30 minutes.</p>
+        )}
+      </fieldset>
 
       <fieldset>
         <legend>Contact</legend>
@@ -139,38 +164,45 @@ export function CheckoutForm({
           <input name="contactEmail" type="email" defaultValue={defaults.email} required />
         </label>
         <label>
-          Phone (optional)
-          <input name="contactPhone" type="tel" defaultValue={defaults.phone} />
+          {fulfillmentType === "PICKUP" ? "Phone" : "Phone (optional)"}
+          <input
+            name="contactPhone"
+            type="tel"
+            defaultValue={defaults.phone}
+            required={fulfillmentType === "PICKUP"}
+          />
         </label>
       </fieldset>
 
-      <fieldset>
-        <legend>Shipping address</legend>
-        <label>
-          Address line 1
-          <input name="addressLine1" defaultValue={defaults.addressLine1} required />
-        </label>
-        <label>
-          Address line 2 (optional)
-          <input name="addressLine2" defaultValue={defaults.addressLine2} />
-        </label>
-        <label>
-          City
-          <input name="city" defaultValue={defaults.city} required />
-        </label>
-        <label>
-          State / province
-          <input name="state" defaultValue={defaults.state} required />
-        </label>
-        <label>
-          Postal code
-          <input name="postalCode" defaultValue={defaults.postalCode} required />
-        </label>
-        <label>
-          Country
-          <input name="country" defaultValue={defaults.country || "US"} required />
-        </label>
-      </fieldset>
+      {fulfillmentType === "SHIPMENT" && (
+        <fieldset>
+          <legend>Shipping address</legend>
+          <label>
+            Address line 1
+            <input name="addressLine1" defaultValue={defaults.addressLine1} required />
+          </label>
+          <label>
+            Address line 2 (optional)
+            <input name="addressLine2" defaultValue={defaults.addressLine2} />
+          </label>
+          <label>
+            City
+            <input name="city" defaultValue={defaults.city} required />
+          </label>
+          <label>
+            State / province
+            <input name="state" defaultValue={defaults.state} required />
+          </label>
+          <label>
+            Postal code
+            <input name="postalCode" defaultValue={defaults.postalCode} required />
+          </label>
+          <label>
+            Country
+            <input name="country" defaultValue={defaults.country || "US"} required />
+          </label>
+        </fieldset>
+      )}
 
       {offerAccountCreation && (
         <fieldset>

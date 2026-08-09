@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { SquareClient, SquareEnvironment, SquareError, type Square } from "square";
+import { SquareClient, SquareEnvironment, type Square } from "square";
 
 /**
  * One shared Square client, same globalThis-caching trick as lib/db.ts (dev
@@ -32,7 +32,26 @@ export function squareLocationId(): string {
   return id;
 }
 
-export { SquareError };
+/**
+ * Square's SDK throws a SquareError subclass on non-2xx responses, but
+ * `instanceof SquareError` unreliably fails here -- Next's per-route
+ * bundling loads a second copy of the "square" package, so the thrown
+ * instance and the imported class aren't the same identity, and every
+ * Square error (including plain card declines) silently falls through to a
+ * generic catch-all instead of a real message. Duck-type the response shape
+ * Square actually documents instead, which is robust to that.
+ */
+export function squareApiErrors(err: unknown): { detail?: string }[] | null {
+  if (
+    err &&
+    typeof err === "object" &&
+    "errors" in err &&
+    Array.isArray((err as { errors: unknown }).errors)
+  ) {
+    return (err as { errors: { detail?: string }[] }).errors;
+  }
+  return null;
+}
 
 /**
  * Square is the customer system of record for anything order-related. We
@@ -89,12 +108,62 @@ export type ShippingRecipient = {
   };
 };
 
+export type PickupRecipient = {
+  displayName: string;
+  emailAddress: string;
+  phoneNumber?: string;
+};
+
+export type Fulfillment =
+  | { type: "SHIPMENT"; shipping: ShippingRecipient }
+  | { type: "PICKUP"; pickup: PickupRecipient };
+
+function buildFulfillment(fulfillment: Fulfillment) {
+  if (fulfillment.type === "PICKUP") {
+    return {
+      type: "PICKUP" as const,
+      pickupDetails: {
+        recipient: {
+          displayName: fulfillment.pickup.displayName,
+          emailAddress: fulfillment.pickup.emailAddress,
+          phoneNumber: fulfillment.pickup.phoneNumber,
+        },
+        // No scheduled-pickup-time picker yet -- every pickup order is
+        // "ready as soon as we can get to it", with prepTimeDuration just
+        // informational (shown in Square's own dashboard/POS).
+        scheduleType: "ASAP" as const,
+        prepTimeDuration: "PT30M",
+      },
+    };
+  }
+  return {
+    type: "SHIPMENT" as const,
+    shipmentDetails: {
+      recipient: {
+        displayName: fulfillment.shipping.displayName,
+        emailAddress: fulfillment.shipping.emailAddress,
+        phoneNumber: fulfillment.shipping.phoneNumber,
+        address: {
+          addressLine1: fulfillment.shipping.address.addressLine1,
+          addressLine2: fulfillment.shipping.address.addressLine2 ?? undefined,
+          locality: fulfillment.shipping.address.locality,
+          administrativeDistrictLevel1: fulfillment.shipping.address.administrativeDistrictLevel1,
+          postalCode: fulfillment.shipping.address.postalCode,
+          // Free-text on our end (see checkout form); Square's type is
+          // a closed ISO-3166 union, so this is a deliberate widen.
+          country: fulfillment.shipping.address.country as Square.Country,
+        },
+      },
+    },
+  };
+}
+
 export async function createOrderAndPayment(params: {
   items: SquareLineItem[];
   sourceId: string;
   customerId?: string;
   buyerEmail: string;
-  shipping: ShippingRecipient;
+  fulfillment: Fulfillment;
 }): Promise<{ squareOrderId: string; squarePaymentId: string; totalCents: number }> {
   const locationId = squareLocationId();
 
@@ -108,30 +177,7 @@ export async function createOrderAndPayment(params: {
         quantity: String(item.quantity),
         name: item.name,
       })),
-      // A single SHIPMENT fulfillment -- checkout only collects one shipping
-      // address today, no pickup/delivery choice yet (see checkout action).
-      fulfillments: [
-        {
-          type: "SHIPMENT",
-          shipmentDetails: {
-            recipient: {
-              displayName: params.shipping.displayName,
-              emailAddress: params.shipping.emailAddress,
-              phoneNumber: params.shipping.phoneNumber,
-              address: {
-                addressLine1: params.shipping.address.addressLine1,
-                addressLine2: params.shipping.address.addressLine2 ?? undefined,
-                locality: params.shipping.address.locality,
-                administrativeDistrictLevel1: params.shipping.address.administrativeDistrictLevel1,
-                postalCode: params.shipping.address.postalCode,
-                // Free-text on our end (see checkout form); Square's type is
-                // a closed ISO-3166 union, so this is a deliberate widen.
-                country: params.shipping.address.country as Square.Country,
-              },
-            },
-          },
-        },
-      ],
+      fulfillments: [buildFulfillment(params.fulfillment)],
     },
   });
 

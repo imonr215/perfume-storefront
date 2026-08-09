@@ -106,7 +106,7 @@ export default async function OrderConfirmationPage({
           </div>
         </section>
 
-        {order.shipping_address && (
+        {order.shipping_address ? (
           <section className="order-confirmation-address">
             <h2 className="section-label">Shipping to</h2>
             <p className="spec">
@@ -117,6 +117,16 @@ export default async function OrderConfirmationPage({
               {order.shipping_address.postalCode}
               <br />
               {order.shipping_address.country}
+            </p>
+          </section>
+        ) : (
+          // No shipping_address is how a pickup order is told apart from a
+          // shipped one -- see lib/actions/checkout.ts, no separate column.
+          <section className="order-confirmation-address">
+            <h2 className="section-label">Pickup</h2>
+            <p className="spec">
+              Ready at our kiosk in about 30 minutes. We&apos;ll reach you at
+              the phone number or email on this order if anything changes.
             </p>
           </section>
         )}

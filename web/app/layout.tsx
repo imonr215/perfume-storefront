@@ -133,6 +133,16 @@ export default async function RootLayout({
             </div>
           </header>
           {children}
+          <footer className="site-footer">
+            <div className="wrap site-footer-inner">
+              <p>© 2026 Bloom &amp; Basin</p>
+              <nav aria-label="Legal">
+                <Link href="/terms">Terms of Service</Link>
+                <Link href="/privacy">Privacy Policy</Link>
+                <Link href="/refunds">Refund Policy</Link>
+              </nav>
+            </div>
+          </footer>
         </CartCountProvider>
       </body>
     </html>

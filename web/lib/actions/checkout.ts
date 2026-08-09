@@ -9,8 +9,8 @@ import { createAddress } from "@/lib/addresses";
 import {
   createOrderAndPayment,
   findOrCreateSquareCustomer,
-  SquareError,
-  type ShippingRecipient,
+  squareApiErrors,
+  type Fulfillment,
   type SquareLineItem,
 } from "@/lib/square";
 import { isValidEmail } from "@/lib/validate";
@@ -52,6 +52,7 @@ export async function checkoutAction(
   formData: FormData
 ): Promise<CheckoutState> {
   const sourceId = String(formData.get("sourceId") ?? "");
+  const fulfillmentType = formData.get("fulfillmentType") === "PICKUP" ? "PICKUP" : "SHIPMENT";
   const contactName = String(formData.get("contactName") ?? "").trim();
   const contactEmail = String(formData.get("contactEmail") ?? "").trim().toLowerCase();
   const contactPhone = String(formData.get("contactPhone") ?? "").trim();
@@ -67,8 +68,11 @@ export async function checkoutAction(
   if (!sourceId) return { error: "Card details didn't come through. Please try again." };
   if (!contactName) return { error: "Enter the name for this order." };
   if (!isValidEmail(contactEmail)) return { error: "Enter a valid email address." };
-  if (!addressLine1 || !city || !state || !postalCode) {
+  if (fulfillmentType === "SHIPMENT" && (!addressLine1 || !city || !state || !postalCode)) {
     return { error: "Fill in the full shipping address." };
+  }
+  if (fulfillmentType === "PICKUP" && !contactPhone) {
+    return { error: "Enter a phone number so we can reach you when it's ready." };
   }
 
   const session = await getSession();
@@ -119,28 +123,47 @@ export async function checkoutAction(
     });
   }
 
-  const shippingAddress: ShippingAddress = {
-    addressLine1,
-    addressLine2: addressLine2 || null,
-    city,
-    state,
-    postalCode,
-    country,
-  };
+  // Pickup orders never touch the address fields, so shippingAddress stays
+  // null -- also what order/[id]/page.tsx and account/orders already use to
+  // tell a pickup order apart from a shipped one (no separate column).
+  const shippingAddress: ShippingAddress | null =
+    fulfillmentType === "SHIPMENT"
+      ? {
+          addressLine1,
+          addressLine2: addressLine2 || null,
+          city,
+          state,
+          postalCode,
+          country,
+        }
+      : null;
 
-  const shipping: ShippingRecipient = {
-    displayName: contactName,
-    emailAddress: contactEmail,
-    phoneNumber: contactPhone || undefined,
-    address: {
-      addressLine1,
-      addressLine2: addressLine2 || null,
-      locality: city,
-      administrativeDistrictLevel1: state,
-      postalCode,
-      country,
-    },
-  };
+  const fulfillment: Fulfillment =
+    fulfillmentType === "PICKUP"
+      ? {
+          type: "PICKUP",
+          pickup: {
+            displayName: contactName,
+            emailAddress: contactEmail,
+            phoneNumber: contactPhone || undefined,
+          },
+        }
+      : {
+          type: "SHIPMENT",
+          shipping: {
+            displayName: contactName,
+            emailAddress: contactEmail,
+            phoneNumber: contactPhone || undefined,
+            address: {
+              addressLine1,
+              addressLine2: addressLine2 || null,
+              locality: city,
+              administrativeDistrictLevel1: state,
+              postalCode,
+              country,
+            },
+          },
+        };
 
   let orderId: string;
   try {
@@ -153,7 +176,7 @@ export async function checkoutAction(
       sourceId,
       customerId: squareCustomerId,
       buyerEmail: contactEmail,
-      shipping,
+      fulfillment,
     });
 
     const orderRows = await sql<{ id: string }[]>`
@@ -163,7 +186,7 @@ export async function checkoutAction(
       ) VALUES (
         ${session?.id ?? null}, ${session ? null : contactEmail}, ${squareOrderId}, ${squarePaymentId}, 'paid',
         ${subtotalCents}, ${totalCents}, ${contactName}, ${contactEmail}, ${contactPhone || null},
-        ${sql.json(shippingAddress)}
+        ${shippingAddress ? sql.json(shippingAddress) : null}
       )
       RETURNING id
     `;
@@ -215,10 +238,11 @@ export async function checkoutAction(
       // order rather than silently attaching it to someone else's account.
     }
   } catch (err) {
-    if (err instanceof SquareError) {
+    const squareErrors = squareApiErrors(err);
+    if (squareErrors) {
       return {
         error:
-          err.errors?.[0]?.detail ??
+          squareErrors[0]?.detail ??
           "The payment didn't go through. Please check your card and try again.",
       };
     }
