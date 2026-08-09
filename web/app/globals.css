@@ -722,7 +722,7 @@ span.pagination-link[aria-disabled="true"] {
 
 /* --- Similar scents (scent detail) / recently viewed (home) --------------- */
 .similar-section { padding-top: 1rem; padding-bottom: 5rem; }
-.recent-rail { padding-bottom: 2.5rem; }
+.recent-rail { padding-top: 1.6rem; padding-bottom: 2.5rem; }
 .recent-rail-scroll {
   display: flex;
   gap: 1.2rem;
