@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Refund Policy — Bloom & Basin",
+  title: "Refund Policy | Bloom & Basin",
 };
 
 export default function RefundsPage() {
@@ -17,13 +17,13 @@ export default function RefundsPage() {
       <p>
         Because of the nature of fragrance products, we don&apos;t accept
         returns or exchanges for a change of mind, wrong choice of scent, or
-        similar reasons — opened or not.
+        similar reasons, opened or not.
       </p>
 
       <h2>Except when we get it wrong</h2>
       <p>
         If what arrives is damaged, defective, or not what you ordered,
-        we&apos;ll make it right — a replacement or a full refund, your
+        we&apos;ll make it right: a replacement or a full refund, your
         choice.
       </p>
       <p>
@@ -44,7 +44,7 @@ export default function RefundsPage() {
       <h2>Questions</h2>
       <p>
         Reach us at <a href="mailto:imonr215@gmail.com">imonr215@gmail.com</a>{" "}
-        before ordering if you&apos;re unsure about a scent — happy to help
+        before ordering if you&apos;re unsure about a scent. Happy to help
         you pick. See also our <Link href="/terms">Terms of Service</Link>{" "}
         and <Link href="/privacy">Privacy Policy</Link>.
       </p>

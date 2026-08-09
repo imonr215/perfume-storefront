@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Service — Bloom & Basin",
+  title: "Terms of Service | Bloom & Basin",
 };
 
 export default function TermsPage() {
@@ -29,7 +29,7 @@ export default function TermsPage() {
 
       <h2>Accounts</h2>
       <p>
-        No account is required to order — guest checkout is available. If
+        No account is required to order; guest checkout is available. If
         you do create one, you&apos;re responsible for keeping your password
         confidential and for anything done through your account. You can
         save addresses, view past orders, and keep a wishlist once signed
@@ -38,7 +38,7 @@ export default function TermsPage() {
 
       <h2>Orders</h2>
       <p>
-        Placing an order is an offer to buy — we confirm it by charging your
+        Placing an order is an offer to buy; we confirm it by charging your
         card. Prices, descriptions, and availability can change without
         notice, and we may cancel and refund an order if an item turns out
         to be unavailable or if there&apos;s a pricing error.
@@ -47,7 +47,7 @@ export default function TermsPage() {
       <h2>Payment</h2>
       <p>
         Card payments are processed by Square. We never see or store your
-        full card number — Square handles that entirely. See our{" "}
+        full card number; Square handles that entirely. See our{" "}
         <Link href="/privacy">Privacy Policy</Link> for details on what
         information we do collect.
       </p>
@@ -62,7 +62,7 @@ export default function TermsPage() {
       <h2>Site content</h2>
       <p>
         Text, images, and design on this site belong to Bloom &amp; Basin
-        unless otherwise noted, and are here for you to shop with — not to
+        unless otherwise noted, and are here for you to shop with, not to
         copy or republish.
       </p>
 

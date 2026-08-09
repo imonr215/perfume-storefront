@@ -57,12 +57,14 @@ export function BottleGlyph({
   family,
   variant,
   className,
+  style,
 }: {
   sku: string;
   brand: string;
   family: string | null;
   variant: string;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   const hue = hueFor(family);
   const lines = wrapBrand(brand);
@@ -75,6 +77,7 @@ export function BottleGlyph({
     <svg
       viewBox="0 0 120 160"
       className={className}
+      style={style}
       role="img"
       aria-label={`Illustration standing in for a product photo of ${brand}`}
     >

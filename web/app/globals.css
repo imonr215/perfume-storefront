@@ -244,6 +244,85 @@ a { color: inherit; text-decoration: none; }
   color: var(--paper);
 }
 
+/* --- Family hero ----------------------------------------------------------
+   Only rendered when a specific family is active (see app/page.tsx) -- the
+   unfiltered "Everything" view has no single family to introduce, so there's
+   nothing here for it to show. --family-hue is set inline per-instance from
+   FAMILY_HUE (lib/format.ts), the same palette already used for the card
+   rail and BottleGlyph tint, so this reads as the same system rather than a
+   new color language bolted on. */
+.family-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-top: 1.6rem;
+  padding: 2.2rem 2.6rem;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--family-hue) 14%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--family-hue) 32%, var(--edge));
+}
+.family-hero-text { max-width: 420px; }
+.family-hero-eyebrow {
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--family-hue);
+  margin: 0 0 0.5rem;
+}
+.family-hero-name {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: var(--step-4);
+  line-height: 1.05;
+  color: var(--ink);
+  margin: 0 0 0.7rem;
+}
+.family-hero-blurb {
+  font-size: var(--step-1);
+  color: var(--ink-soft);
+  margin: 0;
+}
+.family-hero-cluster {
+  display: flex;
+  align-items: flex-end;
+  flex: 0 0 auto;
+}
+.family-hero-photo {
+  width: 130px;
+  height: 173px;
+  margin-left: -2.4rem;
+  filter: drop-shadow(0 12px 18px rgba(20, 52, 58, 0.18));
+}
+/* Override .product-photo's card background/border here specifically --
+   that treatment is built for the grid, where every photo needs the same
+   footprint whether or not it fills its box. In an overlapping cluster the
+   rectangle behind each transparent-bg bottle shows through as a visible
+   card edge, which reads as a stack of photos rather than bottles arranged
+   together. object-position: bottom keeps bottles grounded against a
+   shared baseline instead of vertically centered in their (now invisible)
+   box, which matters more once there's no card edge to anchor against. */
+.family-hero-photo.product-photo {
+  background: none;
+  border: none;
+  border-radius: 0;
+  object-position: bottom;
+}
+.family-hero-photo:first-child { margin-left: 0; }
+.family-hero-cluster .family-hero-photo:nth-child(odd) { transform: rotate(-4deg) translateY(6px); }
+.family-hero-cluster .family-hero-photo:nth-child(even) {
+  transform: rotate(4deg) translateY(-6px);
+  z-index: 1;
+}
+
+@media (max-width: 760px) {
+  .family-hero { flex-direction: column; align-items: flex-start; padding: 1.8rem; }
+  .family-hero-text { max-width: none; }
+  .family-hero-name { font-size: var(--step-3); }
+  .family-hero-cluster { align-self: center; }
+  .family-hero-photo { width: 90px; height: 120px; margin-left: -1.6rem; }
+}
+
 /* --- Grid ---------------------------------------------------------------- */
 .count {
   padding: 1.6rem 0 1rem;

@@ -31,6 +31,25 @@ export function hueFor(family: string | null): string {
   return (family && FAMILY_HUE[family]) || "#8a5a34";
 }
 
+/** One line per family, for the hero banner shown when browsing a specific
+ *  one (see app/components/family-hero.tsx) -- kept short and concrete,
+ *  matching the voice of the product descriptions rather than reaching for
+ *  flowery copy. */
+export const FAMILY_BLURB: Record<string, string> = {
+  Citrus: "Bright and zesty, the wake-up call of the fragrance world.",
+  "Fresh/Aquatic": "Clean and airy, like sea spray and cold water.",
+  Green: "Crisp stems and cut grass, the outdoors in a bottle.",
+  Aromatic: "Herbal and sharp, built around lavender and sage.",
+  Fougère: "The classic barbershop accord: lavender, oakmoss, and clean musk.",
+  Floral: "Soft petals and powder, the most crowded family for good reason.",
+  Chypre: "Mossy and elegant, the old-world standard for sophistication.",
+  Woody: "Warm sandalwood and cedar, grounded and easy to wear every day.",
+  "Amber/Oriental": "Rich resins and spice, warm and dense and unmistakable.",
+  Gourmand: "Vanilla, sugar, and dessert-adjacent sweetness.",
+  Leather: "Smoky and dry, worn-in and confident.",
+  Spicy: "Pepper, clove, and cinnamon for a kick of warmth.",
+};
+
 export function price(cents: number | null): string {
   if (cents == null) return "N/A";
   return `$${(cents / 100).toFixed(0)}`;

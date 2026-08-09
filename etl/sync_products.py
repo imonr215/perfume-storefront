@@ -22,7 +22,18 @@ import sys
 
 import pandas as pd
 import psycopg
+import truststore
 from dotenv import load_dotenv
+
+# This machine's Python/OpenSSL doesn't do the AIA chasing that Windows'
+# native TLS stack (what curl uses) does to fetch a missing intermediate
+# cert -- confirmed live as CERTIFICATE_VERIFY_FAILED against Square's API,
+# same underlying issue as the one documented for etl/sync_fraganty_images.py
+# in root CLAUDE.md. truststore patches ssl to use the OS's own certificate
+# verification instead of a static bundle, which is the real fix (not
+# another one-off curl shim) since every Python HTTPS call on this machine
+# hits the same problem, not just this script's.
+truststore.inject_into_ssl()
 
 SHEET_NAME = "Inventory"
 HEADER_ROW = 1

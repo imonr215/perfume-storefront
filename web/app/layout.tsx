@@ -30,7 +30,7 @@ const body = Karla({
 });
 
 export const metadata: Metadata = {
-  title: "Bloom & Basin — fragrance counter",
+  title: "Bloom & Basin | fragrance counter",
   description:
     "A small fragrance counter. Browse the full shelf, find your scent, and reorder the one you already love.",
 };

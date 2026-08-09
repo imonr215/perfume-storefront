@@ -137,7 +137,21 @@ to a different backend connection than the one that prepared it. Any script
 that runs the same query shape in a loop needs
 `psycopg.connect(url, prepare_threshold=None)`. `apply_schema.py` never hit
 this because it runs schema.sql as one single statement, not a repeated one
-— don't assume that pattern generalizes to new scripts.
+-- don't assume that pattern generalizes to new scripts.
+
+**This dev machine's Python can't verify some real HTTPS certs that curl
+verifies fine.** Confirmed against both fraganty.ai and Square's API:
+`CERTIFICATE_VERIFY_FAILED` / `unable to get local issuer certificate`,
+from Python's `ssl` module either via the Windows cert store or a static
+`certifi` bundle. Windows' native TLS stack (what curl uses here) fetches
+a missing intermediate cert on the fly via AIA chaining; Python's OpenSSL
+binding doesn't do that by default. The durable fix is `truststore`
+(`truststore.inject_into_ssl()` before any HTTPS client is created --
+see `etl/sync_products.py`), which patches `ssl` to use the OS's own
+verification instead. Prefer that over another one-off curl-shim per
+script; `etl/sync_fraganty_images.py` predates this fix and shells out to
+curl instead, which still works but isn't the pattern to copy going
+forward.
 
 **Run `npm run build` in /web before pushing.** Vercel treats lint and type
 errors as build failures, and its log viewer truncates the error.
