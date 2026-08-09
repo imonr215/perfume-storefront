@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { checkoutAction, type CheckoutState } from "@/lib/actions/checkout";
 
 type TokenizeResult = {
@@ -30,6 +30,33 @@ const SQUARE_JS_SRC =
     ? "https://web.squarecdn.com/v1/square.js"
     : "https://sandbox.web.squarecdn.com/v1/square.js";
 
+// Module-level, not component state: shared across every mount so a client-side
+// navigation away and back (or React Strict Mode's double effect run in dev)
+// can't append a second <script> tag while the first is still in flight --
+// Square's SDK does its own customElements.define() on load and throws if
+// that runs twice. Reset to null on failure so the next attempt (a retry, or
+// a fresh mount) starts a clean load instead of awaiting a script tag that
+// already errored out and will never fire again.
+let squareScriptLoadPromise: Promise<void> | null = null;
+
+function loadSquareScript(): Promise<void> {
+  if (window.Square) return Promise.resolve();
+  if (squareScriptLoadPromise) return squareScriptLoadPromise;
+  squareScriptLoadPromise = new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = SQUARE_JS_SRC;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      script.remove();
+      squareScriptLoadPromise = null;
+      reject(new Error("failed to load square.js"));
+    };
+    document.body.appendChild(script);
+  });
+  return squareScriptLoadPromise;
+}
+
 type Defaults = {
   name: string;
   email: string;
@@ -57,25 +84,23 @@ export function CheckoutForm({
   const [cardError, setCardError] = useState<string | null>(null);
   const [createAccount, setCreateAccount] = useState(false);
   const [fulfillmentType, setFulfillmentType] = useState<"SHIPMENT" | "PICKUP">("SHIPMENT");
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const cardRef = useRef<SquareCard | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setCardStatus("loading");
 
-    async function loadScript(): Promise<void> {
-      if (window.Square) return;
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = SQUARE_JS_SRC;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error("failed to load square.js"));
-        document.body.appendChild(script);
-      });
-    }
+    // A single flaky attempt was the whole reason this failed intermittently --
+    // one dropped request to Square's CDN, or a transient hiccup in
+    // payments.card()/attach(), permanently tripped the error state with no
+    // way back short of a full page refresh. Retry a few times with a short
+    // backoff before actually giving up.
+    const MAX_ATTEMPTS = 3;
 
-    async function init() {
+    async function attempt(n: number) {
       const appId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID;
       const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID;
       if (!appId || !locationId) {
@@ -83,7 +108,7 @@ export function CheckoutForm({
         return;
       }
       try {
-        await loadScript();
+        await loadSquareScript();
         if (cancelled || !window.Square) throw new Error("Square SDK unavailable");
         const payments = window.Square.payments(appId, locationId);
         const card = await payments.card();
@@ -95,17 +120,23 @@ export function CheckoutForm({
         cardRef.current = card;
         setCardStatus("ready");
       } catch {
-        if (!cancelled) setCardStatus("error");
+        if (cancelled) return;
+        if (n < MAX_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, 400 * n));
+          if (!cancelled) await attempt(n + 1);
+        } else {
+          setCardStatus("error");
+        }
       }
     }
 
-    init();
+    attempt(1);
     return () => {
       cancelled = true;
       cardRef.current?.destroy().catch(() => {});
       cardRef.current = null;
     };
-  }, []);
+  }, [retryNonce]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -122,7 +153,17 @@ export function CheckoutForm({
 
     const formData = new FormData(formRef.current);
     formData.set("sourceId", result.token);
-    formAction(formData);
+    // formAction is being called after an await (card.tokenize()), outside
+    // the synchronous scope React auto-wraps in a transition for a plain
+    // <form action={...}>. Without this explicit startTransition, the action
+    // still runs and still charges the card server-side, but useActionState
+    // can't apply its redirect() -- the order goes through with nothing on
+    // screen telling the customer that happened. Confirmed live: a real
+    // sandbox payment completed (status "paid", real Square order/payment
+    // ids) while the browser sat on /checkout with no navigation and no error.
+    startTransition(() => {
+      formAction(formData);
+    });
   }
 
   return (
@@ -229,7 +270,16 @@ export function CheckoutForm({
         <legend>Card</legend>
         <div id="card-container" className="card-container" />
         {cardStatus === "error" && (
-          <p className="field-error">Couldn&apos;t load the card form. Refresh and try again.</p>
+          <p className="field-error">
+            Couldn&apos;t load the card form.{" "}
+            <button
+              type="button"
+              className="field-error-retry"
+              onClick={() => setRetryNonce((n) => n + 1)}
+            >
+              Try again
+            </button>
+          </p>
         )}
       </fieldset>
 

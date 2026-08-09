@@ -893,6 +893,16 @@ span.pagination-link[aria-disabled="true"] {
   font-size: 0.85rem;
   margin: 0 0 1.2rem;
 }
+.field-error-retry {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .fulfillment-toggle {
   display: flex;
   gap: 0.6rem;
