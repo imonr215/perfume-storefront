@@ -6,7 +6,7 @@ import Link from "next/link";
 import { hueFor, price } from "@/lib/format";
 import type { Product } from "@/lib/products";
 import { AddToCartForm } from "./add-to-cart-form";
-import { BottleGlyph } from "./bottle-glyph";
+import { ProductPhoto } from "./product-photo";
 
 export function ProductCard({ product }: { product: Product }) {
   const [open, setOpen] = useState(false);
@@ -50,12 +50,14 @@ export function ProductCard({ product }: { product: Product }) {
         <span className="sr-only">{`${product.brand} ${product.product_name}`}</span>
       </Link>
 
-      <BottleGlyph
+      <ProductPhoto
         sku={product.sku}
         brand={product.brand}
         family={product.scent_family}
         variant="card"
         className="card-glyph"
+        imageUrl={product.image_url}
+        imageTransparentUrl={product.image_transparent_url}
       />
 
       <p className="brand">{product.brand}</p>
@@ -109,12 +111,14 @@ function QuickViewModal({
           ×
         </button>
 
-        <BottleGlyph
+        <ProductPhoto
           sku={product.sku}
           brand={product.brand}
           family={product.scent_family}
           variant="quickview"
           className="quickview-glyph"
+          imageUrl={product.image_url}
+          imageTransparentUrl={product.image_transparent_url}
         />
 
         <div className="quickview-body">

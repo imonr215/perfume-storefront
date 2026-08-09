@@ -23,6 +23,8 @@ export type CartItem = {
   price_cents: number | null;
   is_active: boolean;
   scent_family: string | null;
+  image_url: string | null;
+  image_transparent_url: string | null;
 };
 
 async function setCartCookie(cartId: string): Promise<void> {
@@ -95,7 +97,8 @@ export async function getCart(): Promise<CartItem[]> {
   const cartId = await readCartId();
   if (!cartId) return [];
   return sql<CartItem[]>`
-    SELECT ci.sku, ci.quantity, p.brand, p.product_name, p.size, p.price_cents, p.is_active, p.scent_family
+    SELECT ci.sku, ci.quantity, p.brand, p.product_name, p.size, p.price_cents, p.is_active, p.scent_family,
+           p.image_url, p.image_transparent_url
     FROM store_cart_items ci
     JOIN dim_products p ON p.sku = ci.sku
     WHERE ci.cart_id = ${cartId}

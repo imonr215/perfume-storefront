@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { getWishlist } from "@/lib/wishlist";
 import { price } from "@/lib/products";
-import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { ProductPhoto } from "@/app/components/product-photo";
 import { toggleWishlistAction } from "@/lib/actions/wishlist";
 import { SubmitButton } from "@/app/components/submit-button";
 
@@ -31,12 +31,14 @@ export default async function WishlistPage() {
         <ul className="cart-list">
           {items.map((item) => (
             <li className="cart-row wishlist-row" key={item.sku}>
-              <BottleGlyph
+              <ProductPhoto
                 sku={item.sku}
                 brand={item.brand}
                 family={item.scent_family}
                 variant="wishlist"
                 className="cart-glyph"
+                imageUrl={item.image_url}
+                imageTransparentUrl={item.image_transparent_url}
               />
               <div className="cart-row-body">
                 <div className="cart-info">

@@ -15,6 +15,8 @@ export type Product = {
   heart_notes: string[] | null;
   base_notes: string[] | null;
   description: string | null;
+  image_url: string | null;
+  image_transparent_url: string | null;
 };
 
 export type ProductFilters = {
@@ -71,7 +73,8 @@ export async function getProducts(
 
   return sql<Product[]>`
     SELECT sku, brand, product_name, concentration, size, price_cents,
-           scent_family, gender, top_notes, heart_notes, base_notes, description
+           scent_family, gender, top_notes, heart_notes, base_notes, description,
+           image_url, image_transparent_url
     FROM dim_products
     WHERE ${where}
     ORDER BY brand, product_name
@@ -93,7 +96,8 @@ export async function getProductsCount(filters: ProductFilters = {}): Promise<nu
 export async function getRandomProducts(limit: number): Promise<Product[]> {
   return sql<Product[]>`
     SELECT sku, brand, product_name, concentration, size, price_cents,
-           scent_family, gender, top_notes, heart_notes, base_notes, description
+           scent_family, gender, top_notes, heart_notes, base_notes, description,
+           image_url, image_transparent_url
     FROM dim_products
     WHERE is_active
     ORDER BY random()
@@ -134,7 +138,8 @@ export async function getConcentrations(): Promise<string[]> {
 export async function getProduct(sku: string): Promise<Product | null> {
   const rows = await sql<Product[]>`
     SELECT sku, brand, product_name, concentration, size, price_cents,
-           scent_family, gender, top_notes, heart_notes, base_notes, description
+           scent_family, gender, top_notes, heart_notes, base_notes, description,
+           image_url, image_transparent_url
     FROM dim_products
     WHERE sku = ${sku}
     LIMIT 1
@@ -148,7 +153,8 @@ export async function getProductsBySkus(skus: string[]): Promise<Product[]> {
   if (skus.length === 0) return [];
   const rows = await sql<Product[]>`
     SELECT sku, brand, product_name, concentration, size, price_cents,
-           scent_family, gender, top_notes, heart_notes, base_notes, description
+           scent_family, gender, top_notes, heart_notes, base_notes, description,
+           image_url, image_transparent_url
     FROM dim_products
     WHERE is_active AND sku = ANY(${skus})
   `;
@@ -168,7 +174,8 @@ export async function getSimilarProducts(
   if (!family && notes.length === 0) return [];
   return sql<Product[]>`
     SELECT sku, brand, product_name, concentration, size, price_cents,
-           scent_family, gender, top_notes, heart_notes, base_notes, description
+           scent_family, gender, top_notes, heart_notes, base_notes, description,
+           image_url, image_transparent_url
     FROM dim_products
     WHERE is_active
       AND sku != ${sku}

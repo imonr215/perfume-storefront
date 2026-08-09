@@ -12,7 +12,7 @@ import {
 } from "@/lib/products";
 import { getRecentlyViewedSkus } from "@/lib/recently-viewed";
 import { ProductCard } from "@/app/components/product-card";
-import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { ProductPhoto } from "@/app/components/product-photo";
 import { ScrollActiveFamilyIntoView } from "@/app/scroll-active-family";
 
 export const dynamic = "force-dynamic";
@@ -229,12 +229,14 @@ export default async function Home({
                 className="recent-item"
                 prefetch={false}
               >
-                <BottleGlyph
+                <ProductPhoto
                   sku={p.sku}
                   brand={p.brand}
                   family={p.scent_family}
                   variant="recent"
                   className="recent-item-glyph"
+                  imageUrl={p.image_url}
+                  imageTransparentUrl={p.image_transparent_url}
                 />
                 <p className="recent-item-name">{p.product_name}</p>
                 <p className="recent-item-price">{price(p.price_cents)}</p>

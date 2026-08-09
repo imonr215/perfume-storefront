@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { price } from "@/lib/products";
-import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { ProductPhoto } from "@/app/components/product-photo";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +31,8 @@ type OrderItemRow = {
   unit_price_cents: number;
   quantity: number;
   scent_family: string | null;
+  image_url: string | null;
+  image_transparent_url: string | null;
 };
 
 /**
@@ -58,7 +60,8 @@ export default async function OrderConfirmationPage({
   // it's only decorative here (tints the glyph), so a live join back to the
   // catalog is fine even though it isn't a true point-in-time snapshot.
   const items = await sql<OrderItemRow[]>`
-    SELECT oi.sku, oi.product_name, oi.brand, oi.unit_price_cents, oi.quantity, p.scent_family
+    SELECT oi.sku, oi.product_name, oi.brand, oi.unit_price_cents, oi.quantity, p.scent_family,
+           p.image_url, p.image_transparent_url
     FROM store_order_items oi
     LEFT JOIN dim_products p ON p.sku = oi.sku
     WHERE oi.order_id = ${id}
@@ -85,12 +88,14 @@ export default async function OrderConfirmationPage({
             {items.map((item) => (
               <li key={item.sku} className="order-summary-row">
                 <span className="order-summary-item">
-                  <BottleGlyph
+                  <ProductPhoto
                     sku={item.sku}
                     brand={item.brand ?? item.product_name}
                     family={item.scent_family}
                     variant="order"
                     className="order-summary-glyph"
+                    imageUrl={item.image_url}
+                    imageTransparentUrl={item.image_transparent_url}
                   />
                   <span>
                     {item.brand} {item.product_name} × {item.quantity}

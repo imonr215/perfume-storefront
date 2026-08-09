@@ -344,6 +344,20 @@ span.pagination-link[aria-disabled="true"] {
   margin: -0.2rem 0 0.9rem;
 }
 
+/* Combined with each existing glyph-sizing class (.card-glyph,
+   .detail-glyph, etc.) by ProductPhoto -- object-fit rather than a fixed
+   aspect ratio, since real bottle photos don't share BottleGlyph's SVG
+   viewBox proportions. Border/radius/background echo the flacon shape
+   BottleGlyph draws (fill="var(--paper)" stroke="var(--edge)" rx="14"),
+   so a real photo and the generated fallback read as the same visual
+   system rather than two different treatments side by side in a grid. */
+.product-photo {
+  object-fit: contain;
+  border-radius: 14px;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+}
+
 .quick-view-trigger {
   position: absolute;
   top: 0.8rem;

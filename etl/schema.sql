@@ -72,8 +72,24 @@ CREATE TABLE IF NOT EXISTS dim_products (
 
     is_active           BOOLEAN     NOT NULL DEFAULT TRUE,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    -- Real product photography, matched from the fraganty.ai paid API (see
+    -- etl/sync_fraganty_images.py and root CLAUDE.md's "Product images"
+    -- section for the licensing basis). NULL on either/both means no
+    -- confident match was found -- the storefront falls back to
+    -- BottleGlyph's generated artwork in that case, never a broken image.
+    image_url             TEXT,
+    image_transparent_url TEXT
 );
+
+-- image_url predates this file -- it was added directly against the live DB
+-- rather than through schema.sql, so these ADD COLUMN IF NOT EXISTS lines
+-- are what actually matter for that (and any other) already-existing
+-- database; the columns above only take effect on a genuinely fresh install
+-- (CREATE TABLE IF NOT EXISTS is a no-op once the table exists).
+ALTER TABLE dim_products ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE dim_products ADD COLUMN IF NOT EXISTS image_transparent_url TEXT;
 
 CREATE INDEX IF NOT EXISTS ix_products_variation ON dim_products (square_variation_id);
 CREATE INDEX IF NOT EXISTS ix_products_family    ON dim_products (scent_family);

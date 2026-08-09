@@ -6,7 +6,7 @@ import { getCart } from "@/lib/cart";
 import { logoutAction } from "@/lib/actions/auth";
 import { removeFromCartAction } from "@/lib/actions/cart";
 import { price } from "@/lib/products";
-import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { ProductPhoto } from "@/app/components/product-photo";
 import { CartFlyout } from "@/app/components/cart-flyout";
 import { CartBadgeLabel } from "@/app/components/cart-badge-label";
 import { SubmitButton } from "@/app/components/submit-button";
@@ -89,12 +89,14 @@ export default async function RootLayout({
                         <ul className="cart-flyout-list">
                           {cartItems.map((item) => (
                             <li className="cart-flyout-row" key={item.sku}>
-                              <BottleGlyph
+                              <ProductPhoto
                                 sku={item.sku}
                                 brand={item.brand}
                                 family={item.scent_family}
                                 variant="flyout"
                                 className="cart-flyout-glyph"
+                                imageUrl={item.image_url}
+                                imageTransparentUrl={item.image_transparent_url}
                               />
                               <div className="cart-flyout-info">
                                 <p className="cart-flyout-name">{item.product_name}</p>

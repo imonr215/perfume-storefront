@@ -126,6 +126,19 @@ router only recognizes a route from a file literally named `page.tsx`, so
 the shim is what makes `/scent/[sku]` reachable at all. Don't "clean this
 up" by inlining everything into `page.tsx`, and don't delete the shim.
 
+**Supabase's transaction-mode pooler doesn't support server-side prepared
+statements — this bites both the Node and Python sides.** On the Node side
+`lib/db.ts` sets `prepare: false` on the `postgres()` client. On the Python
+side, confirmed live in `etl/sync_fraganty_images.py`: `psycopg` auto-
+prepares a repeated parameterized query after 5 uses by default, and the
+6th+ use failed with `psycopg.errors.InvalidSqlStatementName: prepared
+statement "_pg3_0" does not exist` once the pooler routed a later request
+to a different backend connection than the one that prepared it. Any script
+that runs the same query shape in a loop needs
+`psycopg.connect(url, prepare_threshold=None)`. `apply_schema.py` never hit
+this because it runs schema.sql as one single statement, not a repeated one
+— don't assume that pattern generalizes to new scripts.
+
 **Run `npm run build` in /web before pushing.** Vercel treats lint and type
 errors as build failures, and its log viewer truncates the error.
 
@@ -135,10 +148,30 @@ before pushing.
 
 ## Product images
 
-Do NOT scrape or embed brand product photos or logos (Fragrantica, retailer
-sites, brand marketing assets). They're copyrighted and trademarked, and
-this is a live business — that's real exposure, not a hypothetical.
+Do NOT scrape or embed brand product photos or logos from unlicensed
+sources (Fragrantica, retailer sites, brand marketing assets, or fraganty.ai
+outside the exception below). They're copyrighted and trademarked, and this
+is a live business — that's real exposure, not a hypothetical.
 `app/components/bottle-glyph.tsx` draws an original flacon instead.
+
+**Exception: fraganty.ai paid API tier.** As of 2026-08-09, Bloom & Basin
+holds a paid fraganty.ai API subscription. Per terms at
+https://fraganty.ai/terms (Subscriber = Bloom & Basin), the Paid API tier
+carries a worldwide, sublicensable license to commercially distribute Data
+Assets — explicitly including product photography and brand imagery —
+retrieved through it, backed by fraganty.ai's own ownership/sourcing
+warranty and third-party-IP indemnification. Free/Trial tier access is
+non-commercial-only under the same terms, so this does not extend to
+unauthenticated or free-tier use of their data. Images fetched from
+`img.fraganty.ai` via the paid API (`X-API-Key` header) are therefore fine
+to use as real product photos, in place of or alongside BottleGlyph.
+
+Caveat worth keeping attached to this: fraganty.ai blocks automated access
+(Cloudflare challenge) on both the marketing site and the terms page
+itself, so this was never independently verified against the live page —
+it rests on the business owner's own confirmation, not on Claude having
+read the terms directly. If the subscription lapses, or the terms change,
+this exception no longer holds without re-verifying it.
 
 ## Current state
 

@@ -14,6 +14,7 @@ export async function getWishlist(customerId: string): Promise<WishlistItem[]> {
   return sql<WishlistItem[]>`
     SELECT p.sku, p.brand, p.product_name, p.concentration, p.size, p.price_cents,
            p.scent_family, p.gender, p.top_notes, p.heart_notes, p.base_notes, p.description,
+           p.image_url, p.image_transparent_url,
            w.added_at
     FROM store_wishlist_items w
     JOIN dim_products p ON p.sku = w.sku

@@ -1,0 +1,252 @@
+"""
+sync_fraganty_images.py -- match catalog products to fraganty.ai photos and
+store the resulting URLs on dim_products (image_url, image_transparent_url).
+
+Paid API tier only -- see root CLAUDE.md's "Product images" section for the
+licensing basis (commercial-distribution license grant + IP warranty +
+indemnification, verified against the business owner's own read of
+https://fraganty.ai/terms; fraganty.ai blocks automated access to that page,
+so this was never independently re-checked by tooling). Requires
+FRAGANTY_API_KEY in .env.
+
+Matching is deliberately conservative: brand must share a token with the
+candidate's brand (hard gate), and the product name's token-overlap score
+against the best remaining candidate must clear MIN_SCORE. A wrong match
+(showing a different product's bottle) is worse than no photo at all, and
+the storefront already falls back to BottleGlyph's generated artwork
+whenever image_url is NULL -- there's no broken-image case either way.
+
+Idempotent by default: skips products that already have image_url set, so
+re-running doesn't re-spend API calls on rows already matched. --force
+re-checks everything (e.g. once fraganty's own catalog has grown).
+
+Usage:
+    python sync_fraganty_images.py              # match unmatched products only
+    python sync_fraganty_images.py --force       # re-check every active product
+    python sync_fraganty_images.py --dry-run     # print matches, write nothing
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+import unicodedata
+import urllib.parse
+
+import psycopg
+from dotenv import load_dotenv
+
+API_BASE = "https://fraganty.ai/api"
+MIN_SCORE = 0.5
+# Confirmed live that the API rate-limits well under 0.2s spacing (see the
+# retry-on-429 handling in search_fraganty) -- paced slower so most requests
+# don't need that reactive backoff at all, just fewer, more predictable waits.
+REQUEST_DELAY_SECONDS = 2.0
+
+# Stripped before comparing tokens -- present in our product_name/
+# concentration or fraganty's title inconsistently enough that leaving them
+# in would cost real matches (e.g. "Interlude Man Eau de Parfum" vs
+# "Interlude Man") without adding any actual signal.
+NOISE_WORDS = {
+    "eau", "de", "parfum", "toilette", "cologne", "edp", "edt", "edc",
+    "spray", "for", "men", "women", "man", "woman", "unisex", "ml",
+}
+
+
+def get_conn():
+    load_dotenv()
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        sys.exit("DATABASE_URL is not set in .env")
+    # prepare_threshold=None: psycopg auto-prepares a repeated query
+    # server-side after 5 uses by default. Confirmed live -- this script
+    # runs the same parameterized UPDATE once per match in a loop, and the
+    # 6th+ use failed with "prepared statement ... does not exist" once
+    # Supabase's transaction-mode pooler routed a later request to a
+    # different backend connection than the one that PREPAREd it. Same
+    # underlying issue as `prepare: false` on the Node side in lib/db.ts --
+    # the pooler doesn't support prepared statements in transaction mode.
+    return psycopg.connect(url, prepare_threshold=None)
+
+
+def get_api_key():
+    load_dotenv()
+    key = os.environ.get("FRAGANTY_API_KEY")
+    if not key:
+        sys.exit("FRAGANTY_API_KEY is not set in .env")
+    return key
+
+
+def normalize(text):
+    text = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    return [t for t in text.split() if t and t not in NOISE_WORDS]
+
+
+def token_overlap_score(a_tokens, b_tokens):
+    if not a_tokens or not b_tokens:
+        return 0.0
+    a, b = set(a_tokens), set(b_tokens)
+    return len(a & b) / len(a | b)
+
+
+def search_fraganty(api_key, query, limit=5):
+    # Shells out to curl rather than urllib/ssl: this server's TLS chain is
+    # missing an intermediate cert that Windows' native TLS stack (which
+    # curl uses here) fetches on the fly via AIA chaining -- Python's
+    # OpenSSL-based ssl module doesn't do that by default, and fails the
+    # same way whether it's pointed at the Windows cert store or certifi's
+    # static bundle. curl has been reliable against this exact domain
+    # throughout development; don't "simplify" this back to urllib.
+    url = f"{API_BASE}/perfumes?{urllib.parse.urlencode({'q': query, 'limit': limit})}"
+
+    # The API rate-limits (confirmed live: {"error": "Rate limit exceeded",
+    # "retryAfterMs": N}) rather than returning empty results -- treating
+    # that response as "no match" would have silently mislabeled real
+    # products as unmatched. Back off for exactly as long as it says and
+    # retry the same request instead.
+    while True:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "15", "-H", f"X-API-Key: {api_key}", url],
+            capture_output=True, text=True, check=True,
+        )
+        data = json.loads(result.stdout)
+        if isinstance(data, dict) and data.get("error") == "Rate limit exceeded":
+            wait_s = (data.get("retryAfterMs", 5000) / 1000) + 1
+            print(f"    rate limited, waiting {wait_s:.0f}s...")
+            time.sleep(wait_s)
+            continue
+        return data
+
+
+def url_ok(url):
+    result = subprocess.run(
+        ["curl", "-s", "-o", os.devnull, "-w", "%{http_code}", "--max-time", "10", "-I", url],
+        capture_output=True, text=True,
+    )
+    return result.stdout.strip() == "200"
+
+
+def best_match(brand, product_name, candidates):
+    brand_tokens = normalize(brand)
+    name_tokens = normalize(product_name)
+
+    best, best_score = None, 0.0
+    for c in candidates:
+        c_brand_tokens = normalize(c.get("brand"))
+        # Hard gate: brand must share at least one token. High name-overlap
+        # against the wrong house is exactly the false positive this exists
+        # to block (e.g. matching "Chrome" to the wrong brand's "Chrome").
+        if not brand_tokens or not c_brand_tokens:
+            continue
+        if not (set(brand_tokens) & set(c_brand_tokens)):
+            continue
+
+        score = token_overlap_score(name_tokens, normalize(c.get("name")))
+        if score > best_score:
+            best, best_score = c, score
+
+    if best and best_score >= MIN_SCORE:
+        return best, best_score
+    return None, best_score
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--force", action="store_true", help="re-check products that already have a match")
+    ap.add_argument("--dry-run", action="store_true", help="print matches without writing to the DB")
+    args = ap.parse_args()
+
+    api_key = get_api_key()
+    conn = get_conn()
+    # Commit per-row rather than one transaction around the whole run -- if
+    # the tier's rate limit means this can't finish in one sitting, every
+    # match found before that point is already saved and already showing up
+    # on the site, not sitting invisible in an uncommitted transaction that
+    # a kill/crash would roll back to nothing. Must be set before the first
+    # query -- psycopg won't allow flipping it mid-transaction.
+    conn.autocommit = True
+
+    with conn.cursor() as cur:
+        if args.force:
+            cur.execute(
+                "SELECT sku, brand, product_name FROM dim_products "
+                "WHERE is_active ORDER BY brand, product_name"
+            )
+        else:
+            cur.execute(
+                "SELECT sku, brand, product_name FROM dim_products "
+                "WHERE is_active AND image_url IS NULL ORDER BY brand, product_name"
+            )
+        rows = cur.fetchall()
+
+    print(f"Checking {len(rows)} product(s) against fraganty.ai...", flush=True)
+    matched = 0
+    unmatched = []
+
+    for i, (sku, brand, product_name) in enumerate(rows, 1):
+        # Search matches phrases against fraganty's `name` field alone --
+        # brand isn't part of that text, so a combined "Dior Sauvage" query
+        # matches nothing where "Sauvage" (the actual title) matches
+        # perfectly. Query by name only; the brand-token gate in
+        # best_match() does the brand filtering against the candidates
+        # this turns up.
+        try:
+            result = search_fraganty(api_key, product_name)
+        except Exception as e:
+            print(f"  [{i}/{len(rows)}] ERROR searching for {brand} {product_name!r}: {e}", flush=True)
+            unmatched.append((sku, brand, product_name, "api error"))
+            time.sleep(REQUEST_DELAY_SECONDS)
+            continue
+
+        candidates = result.get("data", [])
+        match, score = best_match(brand, product_name, candidates)
+
+        if not match:
+            print(
+                f"  [{i}/{len(rows)}] no match: {brand} {product_name!r} (best score {score:.2f})",
+                flush=True,
+            )
+            unmatched.append(
+                (sku, brand, product_name, f"no confident match (best score {score:.2f})")
+            )
+            time.sleep(REQUEST_DELAY_SECONDS)
+            continue
+
+        image_url = match.get("image")
+        transparent_url = match.get("imageTransparent")
+        if not transparent_url or not url_ok(transparent_url):
+            transparent_url = None
+
+        print(
+            f"  [{i}/{len(rows)}] MATCH {brand} {product_name!r} -> {match.get('name')!r} (score {score:.2f})",
+            flush=True,
+        )
+        matched += 1
+
+        if not args.dry_run:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE dim_products SET image_url = %s, image_transparent_url = %s, "
+                    "updated_at = now() WHERE sku = %s",
+                    (image_url, transparent_url, sku),
+                )
+
+        time.sleep(REQUEST_DELAY_SECONDS)
+
+    print(f"\nMatched {matched}/{len(rows)}.", flush=True)
+    if unmatched:
+        print(f"{len(unmatched)} unmatched (falls back to BottleGlyph):")
+        for sku, brand, product_name, reason in unmatched:
+            print(f"  {sku}: {brand} {product_name!r} -- {reason}")
+
+    if args.dry_run:
+        print("\n(dry run -- nothing written)")
+
+
+if __name__ == "__main__":
+    main()

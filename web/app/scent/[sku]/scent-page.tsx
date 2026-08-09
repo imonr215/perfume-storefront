@@ -5,7 +5,7 @@ import { toggleWishlistAction } from "@/lib/actions/wishlist";
 import { getSession } from "@/lib/auth";
 import { isWishlisted } from "@/lib/wishlist";
 import { AddToCartForm } from "@/app/components/add-to-cart-form";
-import { BottleGlyph } from "@/app/components/bottle-glyph";
+import { ProductPhoto } from "@/app/components/product-photo";
 import { NoteIcon } from "@/app/components/note-icon";
 import { ProductCard } from "@/app/components/product-card";
 import { SubmitButton } from "@/app/components/submit-button";
@@ -50,12 +50,14 @@ export default async function ScentPage({
 
       <div className="detail">
         <div>
-          <BottleGlyph
+          <ProductPhoto
             sku={p.sku}
             brand={p.brand}
             family={p.scent_family}
             variant="detail"
             className="detail-glyph"
+            imageUrl={p.image_url}
+            imageTransparentUrl={p.image_transparent_url}
           />
 
           <p className="brand">{p.brand}</p>
