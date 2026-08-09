@@ -162,13 +162,19 @@ export default async function Home({
                 </select>
               </label>
 
-              <button type="submit" className="filter-apply">
+              {/* name="family" here too: submit buttons only contribute
+                  their pair when THEY'RE the one clicked, so without this
+                  a click on "Apply filters" would silently drop whatever
+                  family pill was already active. Carrying the current
+                  value forward keeps it in place; a pill click still wins
+                  since only the clicked button's pair is submitted. */}
+              <button type="submit" name="family" value={family ?? ""} className="filter-apply">
                 Apply filters
               </button>
             </div>
           </details>
 
-          <button type="submit" className="search-submit">
+          <button type="submit" name="family" value={family ?? ""} className="search-submit">
             Search
           </button>
         </div>
@@ -182,7 +188,9 @@ export default async function Home({
         {/* Family pills are submit buttons in the same form, so clicking one
             keeps whatever's currently in the search box and the filters
             dropdown rather than resetting them -- the whole form submits
-            together, this button just adds its own family=... field. */}
+            together, this button just adds its own family=... field. The
+            Search/Apply filters buttons return the favor above: they carry
+            the current family forward for the same reason. */}
         <nav className="families" aria-label="Filter by scent family">
           <button
             type="submit"
