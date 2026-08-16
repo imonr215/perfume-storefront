@@ -259,9 +259,12 @@ a { color: inherit; text-decoration: none; }
   margin-top: 1.6rem;
   padding: 2.2rem 2.6rem;
   border-radius: 20px;
-  /* Same mix ratio as .detail-family-wrap -- one tinted-card system, not two. */
-  background: color-mix(in srgb, var(--family-hue) 55%, var(--paper));
-  border: 1px solid color-mix(in srgb, var(--family-hue) 75%, var(--edge));
+  /* Deliberately lighter than .detail-family-wrap's 55%/75% -- the hero
+     banner is a much smaller area than the detail page's full wrap, so the
+     same intensity read as too strong here even though it's the same color
+     formula (color-mix against --family-hue). */
+  background: color-mix(in srgb, var(--family-hue) 45%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--family-hue) 65%, var(--edge));
 }
 .family-hero-text { max-width: 420px; }
 .family-hero-eyebrow {
