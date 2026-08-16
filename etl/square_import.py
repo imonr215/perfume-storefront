@@ -34,12 +34,13 @@ sandbox round-trips cleanly.
 import argparse
 import json
 import os
-import re
 import sys
 import uuid
 from datetime import datetime, timezone
 
 import pandas as pd
+
+from sku import make_sku, slug  # noqa: F401 -- slug re-exported for callers that still import it from here
 
 SHEET_NAME = "Inventory"
 HEADER_ROW = 1          # 0-based; row 2 in the file holds the column headers
@@ -50,14 +51,6 @@ BATCH_SIZE = 500        # Square allows up to ~1000 objects/batch; stay well und
 # --------------------------------------------------------------------------- #
 # Load + clean
 # --------------------------------------------------------------------------- #
-def slug(text: str) -> str:
-    return re.sub(r"[^A-Z0-9]+", "-", str(text).upper()).strip("-")
-
-
-def make_sku(brand, name, size) -> str:
-    return f"{slug(brand)}-{slug(name)}-{slug(size)}"
-
-
 def load_inventory(path: str) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=SHEET_NAME, header=HEADER_ROW, dtype=str)
     df.columns = [c.strip() for c in df.columns]
@@ -72,9 +65,11 @@ def load_inventory(path: str) -> pd.DataFrame:
     # make_sku() strips every non-alphanumeric character. Trusting the sheet in
     # one script and regenerating in another is how the two drift apart, which
     # silently breaks the SKU join between Square and the warehouse.
-    # One function, used everywhere, is the invariant that keeps them aligned.
+    # One function (etl/sku.py), used everywhere, is the invariant that keeps
+    # them aligned -- see that file for why Concentration is part of the key.
     df["SKU"] = df.apply(
-        lambda r: make_sku(r["Brand"], r["Product Name"], r["Size"]), axis=1
+        lambda r: make_sku(r["Brand"], r["Product Name"], r.get("Concentration"), r["Size"]),
+        axis=1,
     )
 
     # Numeric coercions.

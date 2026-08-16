@@ -1,0 +1,46 @@
+"""
+sku.py -- the one, shared place SKUs get built from spreadsheet fields.
+
+Used by square_import.py, sync_products.py, and generate_descriptions.py.
+Before this file existed, all three had their own copy-pasted slug()/SKU
+logic -- which is exactly the trap CLAUDE.md's "One function, used
+everywhere" gotcha warns about for make_sku(): three independent copies
+drift the moment any one of them changes, and nothing catches it until a
+join silently breaks. Import from here, don't re-implement.
+
+Concentration is part of the key as of 2026-08-16: a real inventory import
+(Perry Ellis "360deg", Lacoste "L.12.12 Blanc", Bvlgari "Pour Homme") turned
+up genuine Brand+Name+Size collisions across EDT/EDP variants of the same
+fragrance -- square_import.py's own duplicate-SKU guard caught it and
+refused to import rather than silently merging two distinct real products.
+This also brings dim_products in line with how Square's own catalog was
+already structured: build_catalog_objects() groups items by
+brand+name+concentration, with size as the variation -- make_sku() was the
+one place still missing concentration from that grouping key.
+
+Concentration is skipped from the slug (not left as an empty segment) when
+blank -- some products genuinely don't have one on record yet (e.g. a
+classic cologne that predates the EDT/EDP split), and "BRAND-NAME--SIZE"
+with a stray double dash is worse than just "BRAND-NAME-SIZE".
+"""
+
+import re
+
+
+def slug(text) -> str:
+    return re.sub(r"[^A-Z0-9]+", "-", str(text).upper()).strip("-")
+
+
+def make_sku(brand, name, concentration, size) -> str:
+    parts = [slug(brand), slug(name)]
+    # concentration may arrive as None, "", or pandas' NaN for a genuinely
+    # blank cell (e.g. Coty Aspen, never split into EDT/EDP) -- NaN is
+    # truthy in Python, so a plain `if concentration` check doesn't catch
+    # it and str(nan) would otherwise slug into a bogus "NAN" segment.
+    conc_str = "" if concentration is None else str(concentration).strip()
+    if conc_str.lower() in ("", "nan", "none"):
+        conc_str = ""
+    if conc_str:
+        parts.append(slug(conc_str))
+    parts.append(slug(size))
+    return "-".join(parts)
