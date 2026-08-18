@@ -7,8 +7,8 @@ field for (family, note pyramid, gender) and that the recommender runs on. Squar
 holds the authoritative variation/item ids that order webhooks will reference.
 dim_products is where the two meet, so a line item can join to a scent profile.
 
-Matching is on SKU, which is why the SKU scheme (BRAND-NAME-SIZE) is generated
-identically on both sides.
+Matching is on SKU, which is why the SKU scheme (BRAND-NAME-CONCENTRATION-SIZE)
+is generated identically on both sides.
 
 Usage:
     python sync_products.py --file Perfume_Inventory_100.xlsx
@@ -17,13 +17,14 @@ Usage:
 
 import argparse
 import os
-import re
 import sys
 
 import pandas as pd
 import psycopg
 import truststore
 from dotenv import load_dotenv
+
+from sku import make_sku
 
 # This machine's Python/OpenSSL doesn't do the AIA chasing that Windows'
 # native TLS stack (what curl uses) does to fetch a missing intermediate
@@ -42,10 +43,6 @@ HEADER_ROW = 1
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
-def slug(text) -> str:
-    return re.sub(r"[^A-Z0-9]+", "-", str(text).upper()).strip("-")
-
-
 def parse_notes(value):
     """'Bergamot, Pepper' -> ['Bergamot', 'Pepper']; blank -> []."""
     if pd.isna(value) or not str(value).strip():
@@ -73,8 +70,15 @@ def load_sheet(path: str) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=SHEET_NAME, header=HEADER_ROW)
     df.columns = [c.strip() for c in df.columns]
     df = df[df["Brand"].notna() & df["Product Name"].notna() & df["Size"].notna()].copy()
+    # make_sku() from etl/sku.py -- this used to be its own inline
+    # slug(f"{brand}-{name}-{size}") here, a *different* formula than
+    # square_import.py's make_sku() (join-then-slug vs slug-each-then-join,
+    # plus no Concentration segment). Two copies of "the" SKU formula that
+    # could silently diverge is exactly what CLAUDE.md's "one function, used
+    # everywhere" gotcha for this file is about -- see etl/sku.py.
     df["SKU"] = df.apply(
-        lambda r: slug(f"{r['Brand']}-{r['Product Name']}-{r['Size']}"), axis=1
+        lambda r: make_sku(r["Brand"], r["Product Name"], r.get("Concentration"), r["Size"]),
+        axis=1,
     )
     return df.reset_index(drop=True)
 

@@ -144,11 +144,23 @@ CREATE INDEX IF NOT EXISTS ix_orders_customer   ON fact_orders (square_customer_
 
 
 -- Line items drive both "frequently bought together" and per-SKU forecasting.
+--
+-- Every FK below that references dim_products (sku) is DEFERRABLE INITIALLY
+-- DEFERRED, not the Postgres default (NOT DEFERRABLE / checked per-statement).
+-- Confirmed needed live: renaming a SKU in dim_products (e.g. the 2026-08-16
+-- migration adding Concentration to make_sku()) has to update dim_products
+-- and every table that references it by value in the same transaction: with
+-- the default NOT DEFERRABLE, the very first UPDATE fails immediately
+-- because the referencing rows still point at the old (about-to-not-exist)
+-- SKU -- there's no correct order of separate statements that satisfies a
+-- non-deferred constraint here. Deferred-to-COMMIT checking is what makes a
+-- coordinated multi-table rename possible at all; day-to-day single-row
+-- inserts/updates behave identically either way.
 CREATE TABLE IF NOT EXISTS fact_line_items (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     square_order_id     TEXT NOT NULL REFERENCES fact_orders (square_order_id) ON DELETE CASCADE,
     square_line_uid     TEXT NOT NULL,
-    sku                 TEXT REFERENCES dim_products (sku),
+    sku                 TEXT REFERENCES dim_products (sku) DEFERRABLE INITIALLY DEFERRED,
     square_variation_id TEXT,
 
     quantity            NUMERIC(10,2) NOT NULL DEFAULT 1,
@@ -173,7 +185,7 @@ CREATE INDEX IF NOT EXISTS ix_line_items_order    ON fact_line_items (square_ord
 
 CREATE TABLE IF NOT EXISTS fact_inventory_snapshots (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    sku             TEXT REFERENCES dim_products (sku),
+    sku             TEXT REFERENCES dim_products (sku) DEFERRABLE INITIALLY DEFERRED,
     location_id     TEXT,
     quantity        NUMERIC(10,2),
     captured_at     TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -269,7 +281,7 @@ CREATE TABLE IF NOT EXISTS store_carts (
 
 CREATE TABLE IF NOT EXISTS store_cart_items (
     cart_id   UUID        NOT NULL REFERENCES store_carts (id) ON DELETE CASCADE,
-    sku       TEXT        NOT NULL REFERENCES dim_products (sku),
+    sku       TEXT        NOT NULL REFERENCES dim_products (sku) DEFERRABLE INITIALLY DEFERRED,
     quantity  INTEGER     NOT NULL CHECK (quantity > 0),
     added_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (cart_id, sku)
@@ -351,7 +363,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_customer_addresses_default
 -- across devices, which requires an account).
 CREATE TABLE IF NOT EXISTS store_wishlist_items (
     customer_id UUID        NOT NULL REFERENCES store_customers (id) ON DELETE CASCADE,
-    sku         TEXT        NOT NULL REFERENCES dim_products (sku),
+    sku         TEXT        NOT NULL REFERENCES dim_products (sku) DEFERRABLE INITIALLY DEFERRED,
     added_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (customer_id, sku)
 );
