@@ -17,12 +17,24 @@ Usage:
 
 import argparse
 import os
-import re
 import sys
 
 import pandas as pd
 import psycopg
+import truststore
 from dotenv import load_dotenv
+
+from sku import make_sku
+
+# This machine's Python/OpenSSL doesn't do the AIA chasing that Windows'
+# native TLS stack (what curl uses) does to fetch a missing intermediate
+# cert -- confirmed live as CERTIFICATE_VERIFY_FAILED against Square's API,
+# same underlying issue as the one documented for etl/sync_fraganty_images.py
+# in root CLAUDE.md. truststore patches ssl to use the OS's own certificate
+# verification instead of a static bundle, which is the real fix (not
+# another one-off curl shim) since every Python HTTPS call on this machine
+# hits the same problem, not just this script's.
+truststore.inject_into_ssl()
 
 SHEET_NAME = "Inventory"
 HEADER_ROW = 1
@@ -31,10 +43,6 @@ HEADER_ROW = 1
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
-def slug(text) -> str:
-    return re.sub(r"[^A-Z0-9]+", "-", str(text).upper()).strip("-")
-
-
 def parse_notes(value):
     """'Bergamot, Pepper' -> ['Bergamot', 'Pepper']; blank -> []."""
     if pd.isna(value) or not str(value).strip():
@@ -62,8 +70,15 @@ def load_sheet(path: str) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=SHEET_NAME, header=HEADER_ROW)
     df.columns = [c.strip() for c in df.columns]
     df = df[df["Brand"].notna() & df["Product Name"].notna() & df["Size"].notna()].copy()
+    # make_sku() from etl/sku.py -- this used to be its own inline
+    # slug(f"{brand}-{name}-{size}") here, a *different* formula than
+    # square_import.py's make_sku() (join-then-slug vs slug-each-then-join,
+    # plus no Concentration segment). Two copies of "the" SKU formula that
+    # could silently diverge is exactly what CLAUDE.md's "one function, used
+    # everywhere" gotcha for this file is about -- see etl/sku.py.
     df["SKU"] = df.apply(
-        lambda r: slug(f"{r['Brand']}-{r['Product Name']}-{r['Size']}"), axis=1
+        lambda r: make_sku(r["Brand"], r["Product Name"], r.get("Concentration"), r["Size"]),
+        axis=1,
     )
     return df.reset_index(drop=True)
 

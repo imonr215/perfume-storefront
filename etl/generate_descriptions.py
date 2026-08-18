@@ -21,9 +21,10 @@ Usage:
 
 import argparse
 import hashlib
-import re
 
 import pandas as pd
+
+from sku import make_sku
 
 SHEET_NAME = "Inventory"
 HEADER_ROW = 1
@@ -124,10 +125,6 @@ DEFAULT_GENDER_PHRASE = "a versatile, everyday choice"
 DEFAULT_CONCENTRATION_PHRASE = "true to its concentration in how long it wears"
 
 
-def slug(text) -> str:
-    return re.sub(r"[^A-Z0-9]+", "-", str(text).upper()).strip("-")
-
-
 def pick(pool: dict, key: str, sku: str):
     """Deterministic rotation through a phrase pool, keyed by SKU so the
     same product gets the same phrasing every time this is re-run."""
@@ -186,7 +183,12 @@ def load(file: str) -> pd.DataFrame:
     df = pd.read_excel(file, sheet_name=SHEET_NAME, header=HEADER_ROW)
     df.columns = [c.strip() for c in df.columns]
     df = df[df["Brand"].notna() & df["Product Name"].notna() & df["Size"].notna()].copy()
-    df["SKU"] = df.apply(lambda r: slug(f"{r['Brand']}-{r['Product Name']}-{r['Size']}"), axis=1)
+    # make_sku() from etl/sku.py -- see that file for why this replaced a
+    # third independent copy of the same slug-and-join logic.
+    df["SKU"] = df.apply(
+        lambda r: make_sku(r["Brand"], r["Product Name"], r.get("Concentration"), r["Size"]),
+        axis=1,
+    )
     return df.reset_index(drop=True)
 
 
@@ -234,6 +236,7 @@ def main():
         headers = {cell.value: cell.column for cell in ws[header_row_idx]}
         desc_col = headers["Description (optional)"]
         brand_col, name_col, size_col = headers["Brand"], headers["Product Name"], headers["Size"]
+        concentration_col = headers.get("Concentration")
 
         new_by_sku = dict(zip(df["SKU"], df["New Description"]))
         updated = 0
@@ -241,9 +244,16 @@ def main():
             brand = ws.cell(row_idx, brand_col).value
             name = ws.cell(row_idx, name_col).value
             size = ws.cell(row_idx, size_col).value
+            concentration = ws.cell(row_idx, concentration_col).value if concentration_col else None
             if not brand or not name or not size:
                 continue
-            sku = slug(f"{brand}-{name}-{size}")
+            # make_sku(), not the old bare slug(f"{brand}-{name}-{size}") --
+            # that local slug() was removed when this file switched to the
+            # shared etl/sku.py (see load() above), which left this branch
+            # calling an undefined name. Same function, same fields dry-run
+            # and --write-xlsx now use, or the SKUs used to key new_by_sku
+            # here silently stop matching the ones load() produced.
+            sku = make_sku(brand, name, concentration, size)
             if sku in new_by_sku:
                 ws.cell(row_idx, desc_col).value = new_by_sku[sku]
                 updated += 1
