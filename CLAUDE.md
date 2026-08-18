@@ -75,12 +75,23 @@ Deployed on Vercel with **Root Directory set to `web`**.
 
 ## Conventions and hard-won gotchas
 
-**SKU is always derived in Python (`make_sku()` in `etl/square_import.py`),
-never read from the spreadsheet.** It strips all non-alphanumerics; the
-sheet's own SKU formula only replaces spaces, so it keeps `&`, apostrophes,
-periods, and accents. Trusting the sheet in one script and regenerating in
-another has silently broken joins before. One function, used everywhere. The
-sheet's SKU column is display-only.
+**SKU is always derived in Python (`make_sku()` in `etl/sku.py`), never read
+from the spreadsheet.** Format is `BRAND-NAME-CONCENTRATION-SIZE` —
+concentration was added after the real inventory count surfaced products
+that differ only by concentration (e.g. Lacoste L.12.12 Blanc EDT vs. EDP,
+same size, same price, genuinely different products); the old
+`BRAND-NAME-SIZE` scheme collapsed those to one SKU. Concentration is the
+one optional segment, skipped (not left as an empty segment) when blank —
+a blank cell comes through pandas as NaN/None, and `str(nan)` is the
+literal text `"nan"`, so it's checked for explicitly rather than slugged
+in. `make_sku()` strips all non-alphanumerics; the sheet's own SKU formula
+only replaces spaces, so it keeps `&`, apostrophes, periods, and accents.
+`etl/square_import.py`, `etl/sync_products.py`, and
+`etl/generate_descriptions.py` all import `make_sku()` from `etl/sku.py`
+rather than reimplementing it — three independent copies drifting apart
+(once cost 21 of 100 products their join) is exactly the failure mode a
+single shared function exists to prevent. The sheet's SKU column is
+display-only.
 
 **Webhook payloads must go in via `sql.json(payload as never)`.**
 `JSON.stringify(...)::jsonb` compiles but double-encodes, storing a JSON

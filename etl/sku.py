@@ -40,7 +40,12 @@ def make_sku(brand, name, concentration, size) -> str:
     conc_str = "" if concentration is None else str(concentration).strip()
     if conc_str.lower() in ("", "nan", "none"):
         conc_str = ""
-    if conc_str:
-        parts.append(slug(conc_str))
+    # Check the *slugged* result, not just the raw string -- a concentration
+    # that's non-blank but entirely non-alphanumeric (e.g. "***") slugs to
+    # "", and appending that anyway would leave a stray double dash
+    # ("COTY-ASPEN--118ML") instead of skipping the segment cleanly.
+    conc_slug = slug(conc_str) if conc_str else ""
+    if conc_slug:
+        parts.append(conc_slug)
     parts.append(slug(size))
     return "-".join(parts)
