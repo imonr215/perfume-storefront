@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — Bloom & Basin",
+  title: "Privacy Policy | Bloom & Basin",
 };
 
 export default function PrivacyPage() {
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
       <p>
         If you create an account, we also store your saved addresses, your
         order history, and your wishlist. We do not collect or store your
-        card number — card details are entered directly into a payment form
+        card number. Card details are entered directly into a payment form
         provided by Square and are tokenized in your browser before anything
         reaches our server; we only ever see a one-time payment token, never
         the card itself.
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
 
       <h2>Cookies</h2>
       <p>
-        This site uses a small number of functional, first-party cookies —
+        This site uses a small number of functional, first-party cookies:
         one to identify your cart (so it survives between visits before you
         check out) and, if you&apos;re signed in, one to keep you logged in.
         We don&apos;t use advertising or analytics cookies, and we
@@ -45,10 +45,11 @@ export default function PrivacyPage() {
 
       <h2>How we use it</h2>
       <p>
-        To fulfill your order — charging your card via Square, preparing
-        your pickup or shipment, and sending your receipt — and, if you have
-        an account, to show you your order history, saved addresses, and
-        wishlist. Square acts as our payment processor for this — see{" "}
+        To fulfill your order: charging your card via Square, preparing
+        your pickup or shipment, and sending your receipt. If you have an
+        account, we also use it to show you your order history, saved
+        addresses, and wishlist. Square acts as our payment processor for
+        this; see{" "}
         <a
           href="https://squareup.com/us/en/legal/general/privacy"
           target="_blank"

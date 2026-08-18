@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Fraunces, Karla } from "next/font/google";
+import { Bitter, Karla } from "next/font/google";
 import { getSession } from "@/lib/auth";
 import { getCart } from "@/lib/cart";
 import { logoutAction } from "@/lib/actions/auth";
@@ -13,10 +13,11 @@ import { SubmitButton } from "@/app/components/submit-button";
 import { CartCountProvider } from "@/lib/cart-context";
 import "./globals.css";
 
-/* Fraunces for display: a soft optical serif — warm and handmade rather than
-   the high-contrast luxury serif every fragrance brand reaches for. Karla for
+/* Bitter for display: a sturdy slab serif, warm rather than the
+   high-contrast luxury serif every fragrance brand reaches for -- swapped in
+   for Fraunces, whose lowercase "f" read too quirky for the brand. Karla for
    body: humanist, slightly quirky, easy at small sizes. */
-const display = Fraunces({
+const display = Bitter({
   subsets: ["latin"],
   weight: ["400", "600"],
   variable: "--font-display",
@@ -29,7 +30,7 @@ const body = Karla({
 });
 
 export const metadata: Metadata = {
-  title: "Bloom & Basin — fragrance counter",
+  title: "Bloom & Basin | fragrance counter",
   description:
     "A small fragrance counter. Browse the full shelf, find your scent, and reorder the one you already love.",
 };

@@ -7,8 +7,8 @@ field for (family, note pyramid, gender) and that the recommender runs on. Squar
 holds the authoritative variation/item ids that order webhooks will reference.
 dim_products is where the two meet, so a line item can join to a scent profile.
 
-Matching is on SKU, which is why the SKU scheme (BRAND-NAME-SIZE) is generated
-identically on both sides.
+Matching is on SKU, which is why the SKU scheme (BRAND-NAME-CONCENTRATION-SIZE)
+is generated identically on both sides.
 
 Usage:
     python sync_products.py --file Perfume_Inventory_100.xlsx

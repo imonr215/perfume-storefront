@@ -13,14 +13,15 @@ import {
 import { getRecentlyViewedSkus } from "@/lib/recently-viewed";
 import { ProductCard } from "@/app/components/product-card";
 import { ProductPhoto } from "@/app/components/product-photo";
+import { FamilyHero } from "@/app/components/family-hero";
 import { ScrollActiveFamilyIntoView } from "@/app/scroll-active-family";
 
 export const dynamic = "force-dynamic";
 
 const PRICE_BUCKETS: Record<string, { min?: number; max?: number; label: string }> = {
   "under-75": { max: 7500, label: "Under $75" },
-  "75-150": { min: 7500, max: 15000, label: "$75–$150" },
-  "150-250": { min: 15000, max: 25000, label: "$150–$250" },
+  "75-150": { min: 7500, max: 15000, label: "$75 to $150" },
+  "150-250": { min: 15000, max: 25000, label: "$150 to $250" },
   "250-plus": { min: 25000, label: "$250+" },
 };
 
@@ -217,6 +218,8 @@ export default async function Home({
       </form>
 
       <ScrollActiveFamilyIntoView />
+
+      {family && <FamilyHero family={family} products={products} />}
 
       {recentProducts.length > 0 && (
         <section className="recent-rail">

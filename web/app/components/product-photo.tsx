@@ -21,6 +21,7 @@ export function ProductPhoto({
   className,
   imageUrl,
   imageTransparentUrl,
+  style,
 }: {
   sku: string;
   brand: string;
@@ -29,11 +30,19 @@ export function ProductPhoto({
   className?: string;
   imageUrl?: string | null;
   imageTransparentUrl?: string | null;
+  style?: React.CSSProperties;
 }) {
   const src = imageTransparentUrl ?? imageUrl;
   if (!src) {
     return (
-      <BottleGlyph sku={sku} brand={brand} family={family} variant={variant} className={className} />
+      <BottleGlyph
+        sku={sku}
+        brand={brand}
+        family={family}
+        variant={variant}
+        className={className}
+        style={style}
+      />
     );
   }
 
@@ -48,6 +57,7 @@ export function ProductPhoto({
       alt={`${brand} bottle`}
       loading="lazy"
       className={className ? `${className} product-photo` : "product-photo"}
+      style={style}
     />
   );
 }
