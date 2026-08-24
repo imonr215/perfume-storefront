@@ -147,6 +147,46 @@ export async function getProduct(sku: string): Promise<Product | null> {
   return rows[0] ?? null;
 }
 
+export type ProductSizeOption = {
+  sku: string;
+  size: string | null;
+  price_cents: number | null;
+};
+
+/** Sibling SKUs of the same fragrance -- same brand, product name, AND
+ *  concentration. Concentration is deliberately part of the match: EDT vs.
+ *  EDP are genuinely different products (see etl/sku.py), not sizes of one
+ *  another, so a size selector must never let someone toggle across that
+ *  line believing they're just picking a bottle size. `IS NOT DISTINCT
+ *  FROM` (rather than `=`) so a product with no concentration on record
+ *  still matches its own siblings instead of every comparison going NULL. */
+export async function getProductSizes(
+  brand: string,
+  productName: string,
+  concentration: string | null
+): Promise<ProductSizeOption[]> {
+  const rows = await sql<ProductSizeOption[]>`
+    SELECT sku, size, price_cents
+    FROM dim_products
+    WHERE is_active
+      AND brand = ${brand}
+      AND product_name = ${productName}
+      AND concentration IS NOT DISTINCT FROM ${concentration}
+  `;
+  // Sorted smallest-to-largest by the leading number in size ("50ml" before
+  // "100ml") rather than alphabetically, which would put "100ml" first --
+  // sizes that don't parse (unexpected format) sort after ones that do,
+  // in their original order, rather than throwing.
+  return rows.sort((a, b) => {
+    const numA = parseFloat(a.size ?? "");
+    const numB = parseFloat(b.size ?? "");
+    if (Number.isNaN(numA) && Number.isNaN(numB)) return 0;
+    if (Number.isNaN(numA)) return 1;
+    if (Number.isNaN(numB)) return -1;
+    return numA - numB;
+  });
+}
+
 /** Preserves the order of `skus` (most-recent-first for recently-viewed
  *  rails) rather than whatever order Postgres happens to return. */
 export async function getProductsBySkus(skus: string[]): Promise<Product[]> {
