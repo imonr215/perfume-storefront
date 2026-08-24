@@ -552,6 +552,43 @@ span.pagination-link[aria-disabled="true"] {
   margin: 0.4rem 0 0.5rem;
   letter-spacing: -0.02em;
 }
+/* --- Size selector -------------------------------------------------------
+   Same pill-row/data-active pattern as .fulfillment-toggle (checkout) and
+   .family (home grid) -- one visual language for "pick one of these"
+   across the site. These are plain links to the sibling SKU's own detail
+   page (see app/components/size-selector.tsx), not buttons, since each
+   size really is a different page/product row underneath. */
+.size-field { margin: 0.9rem 0 0; }
+.size-field-label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.4rem;
+}
+.size-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.size-option {
+  border: 1px solid var(--edge);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.size-option:hover { border-color: var(--amber); color: var(--ink); }
+.size-option[data-active="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
 .detail-price {
   font-family: var(--font-display), Georgia, serif;
   font-size: var(--step-2);

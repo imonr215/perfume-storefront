@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct, getSimilarProducts, hueFor, price } from "@/lib/products";
+import { getProduct, getProductSizes, getSimilarProducts, hueFor, price } from "@/lib/products";
 import { toggleWishlistAction } from "@/lib/actions/wishlist";
 import { getSession } from "@/lib/auth";
 import { isWishlisted } from "@/lib/wishlist";
@@ -8,6 +8,7 @@ import { AddToCartForm } from "@/app/components/add-to-cart-form";
 import { ProductPhoto } from "@/app/components/product-photo";
 import { NoteIcon } from "@/app/components/note-icon";
 import { ProductCard } from "@/app/components/product-card";
+import { SizeSelector } from "@/app/components/size-selector";
 import { SubmitButton } from "@/app/components/submit-button";
 import { RecordView } from "./record-view";
 
@@ -30,13 +31,14 @@ export default async function ScentPage({
 
   const hue = hueFor(p.scent_family);
 
-  const [session, similar] = await Promise.all([
+  const [session, similar, sizes] = await Promise.all([
     getSession(),
     getSimilarProducts(p.sku, p.scent_family, [
       ...(p.top_notes ?? []),
       ...(p.heart_notes ?? []),
       ...(p.base_notes ?? []),
     ]),
+    getProductSizes(p.brand, p.product_name, p.concentration),
   ]);
   const wishlisted = session ? await isWishlisted(session.id, p.sku) : false;
 
@@ -71,6 +73,8 @@ export default async function ScentPage({
             <p className="spec">
               {[p.concentration, p.size, p.gender].filter(Boolean).join(" · ")}
             </p>
+
+            <SizeSelector sizes={sizes} currentSku={p.sku} />
 
             {p.description && <p className="detail-blurb">{p.description}</p>}
 
