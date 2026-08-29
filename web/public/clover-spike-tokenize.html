@@ -50,9 +50,26 @@
         result.textContent = "Tokenizing...";
         try {
           const tokenResult = await clover.createToken();
-          result.textContent = JSON.stringify(tokenResult, null, 2);
+          console.log("raw createToken() result:", tokenResult);
+
+          // JSON.stringify only picks up own enumerable properties, which
+          // misses getter-based SDK response shapes -- read known fields
+          // directly instead, and fall back to listing whatever keys exist.
+          const lines = [];
+          lines.push("typeof: " + typeof tokenResult);
+          lines.push("own keys: " + JSON.stringify(Object.keys(tokenResult || {})));
+          for (const key of ["token", "id", "errors", "error", "card", "status"]) {
+            if (tokenResult && tokenResult[key] !== undefined) {
+              lines.push(key + ": " + JSON.stringify(tokenResult[key]));
+            }
+          }
+          lines.push("--- full JSON.stringify ---");
+          lines.push(JSON.stringify(tokenResult, null, 2));
+          result.textContent = lines.join("\n");
         } catch (err) {
-          result.textContent = "createToken() threw: " + JSON.stringify(err, Object.getOwnPropertyNames(err));
+          console.log("createToken() threw:", err);
+          result.textContent = "createToken() threw -- see console. keys: " +
+            JSON.stringify(Object.keys(err || {})) + "\nmessage: " + (err && err.message);
         }
       });
     } catch (err) {
