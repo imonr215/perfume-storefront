@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Clover spike -- tokenize a test card</title>
+<script src="https://checkout.sandbox.dev.clover.com/sdk.js"></script>
+<style>
+  body { font-family: sans-serif; max-width: 480px; margin: 40px auto; }
+  .field { border: 1px solid #ccc; border-radius: 4px; padding: 10px; margin-bottom: 10px; height: 20px; }
+  button { padding: 10px 16px; }
+  #result { margin-top: 20px; white-space: pre-wrap; word-break: break-all; font-family: monospace; background: #f4f4f4; padding: 10px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h3>Clover sandbox tokenization spike</h3>
+<p>Test card: 6011361000006668, exp 12/2030, cvv 123, zip 10001</p>
+<div id="card-number" class="field"></div>
+<div id="card-date" class="field"></div>
+<div id="card-cvv" class="field"></div>
+<div id="card-postal-code" class="field"></div>
+<button id="submit">Get token</button>
+<div id="result"></div>
+
+<script>
+  const PUBLIC_KEY = "152c713640a50df5d83ae77c4fcd95dd";
+  const MERCHANT_ID = "RCTSTAVI0010002";
+
+  const result = document.getElementById("result");
+  result.textContent = "Loading SDK...";
+
+  window.addEventListener("load", () => {
+    try {
+      const clover = new Clover(PUBLIC_KEY, { merchantId: MERCHANT_ID });
+      const elements = clover.elements();
+
+      const styles = { body: { fontSize: "14px" } };
+      const cardNumber = elements.create("CARD_NUMBER", styles);
+      const cardDate = elements.create("CARD_DATE", styles);
+      const cardCvv = elements.create("CARD_CVV", styles);
+      const cardPostalCode = elements.create("CARD_POSTAL_CODE", styles);
+
+      cardNumber.mount("#card-number");
+      cardDate.mount("#card-date");
+      cardCvv.mount("#card-cvv");
+      cardPostalCode.mount("#card-postal-code");
+
+      result.textContent = "SDK loaded, fields mounted. Fill in the test card and submit.";
+
+      document.getElementById("submit").addEventListener("click", async () => {
+        result.textContent = "Tokenizing...";
+        try {
+          const tokenResult = await clover.createToken();
+          result.textContent = JSON.stringify(tokenResult, null, 2);
+        } catch (err) {
+          result.textContent = "createToken() threw: " + JSON.stringify(err, Object.getOwnPropertyNames(err));
+        }
+      });
+    } catch (err) {
+      result.textContent = "SDK init failed: " + (err && err.message ? err.message : String(err));
+    }
+  });
+</script>
+</body>
+</html>
