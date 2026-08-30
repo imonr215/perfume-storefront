@@ -3,9 +3,9 @@ import {
   getConcentrations,
   getFamilies,
   getGenders,
-  getProducts,
+  getProductGroups,
+  getProductGroupsCount,
   getProductsBySkus,
-  getProductsCount,
   getRandomProducts,
   price,
   PRODUCTS_PAGE_SIZE,
@@ -62,9 +62,9 @@ export default async function Home({
     priceMaxCents: bucket?.max,
   };
 
-  const [products, total, families, genders, concentrations, recentSkus] = await Promise.all([
-    getProducts(productFilters, page),
-    getProductsCount(productFilters),
+  const [groups, total, families, genders, concentrations, recentSkus] = await Promise.all([
+    getProductGroups(productFilters, page),
+    getProductGroupsCount(productFilters),
     getFamilies(),
     getGenders(),
     getConcentrations(),
@@ -80,7 +80,7 @@ export default async function Home({
 
   // A dead-end search/filter combo shouldn't be a dead end for the visit --
   // offer a few random bottles to keep browsing instead of just stopping.
-  const fallbackProducts = products.length === 0 ? await getRandomProducts(4) : [];
+  const fallbackProducts = groups.length === 0 ? await getRandomProducts(4) : [];
 
   // Pagination links need every OTHER current param preserved, with just
   // `page` swapped -- built from the raw searchParams rather than the
@@ -219,7 +219,7 @@ export default async function Home({
 
       <ScrollActiveFamilyIntoView />
 
-      {family && <FamilyHero family={family} products={products} />}
+      {family && <FamilyHero family={family} products={groups.map((g) => g.product)} />}
 
       {recentProducts.length > 0 && (
         <section className="recent-rail">
@@ -255,7 +255,7 @@ export default async function Home({
         {q ? ` matching “${q}”` : ""}
       </p>
 
-      {products.length === 0 ? (
+      {groups.length === 0 ? (
         <>
           <p className="empty">
             Nothing matches those filters yet. Try loosening one, or{" "}
@@ -278,8 +278,14 @@ export default async function Home({
       ) : (
         <>
           <div className="grid">
-            {products.map((p) => (
-              <ProductCard key={p.sku} product={p} />
+            {groups.map((g) => (
+              <ProductCard
+                key={g.product.sku}
+                product={g.product}
+                sizes={g.sizes}
+                minPriceCents={g.minPriceCents}
+                maxPriceCents={g.maxPriceCents}
+              />
             ))}
           </div>
 

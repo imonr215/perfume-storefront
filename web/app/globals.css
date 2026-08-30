@@ -558,6 +558,16 @@ span.pagination-link[aria-disabled="true"] {
    page (see app/components/size-selector.tsx), not buttons, since each
    size really is a different page/product row underneath. */
 .size-field { margin: 0.9rem 0 0; }
+
+/* Only matters where .size-field/.size-selector is reused inside a grid
+   tile (app/components/product-card.tsx): .card-link covers the whole
+   tile at z-index 1 for one-click-to-detail, and a plain in-flow link
+   with no position/z-index of its own paints *behind* that (same reason
+   .quick-view-trigger needs its own absolute+z-index below) -- without
+   this, every size link would render but silently be unclickable, always
+   handing the click to .card-link instead. The detail page's own
+   .size-field (no overlay link competing there) is unaffected. */
+.card .size-field { position: relative; z-index: 2; }
 .size-field-label {
   display: block;
   font-size: 0.72rem;

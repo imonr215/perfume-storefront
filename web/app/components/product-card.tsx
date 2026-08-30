@@ -4,14 +4,41 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { hueFor, price } from "@/lib/format";
-import type { Product } from "@/lib/products";
+import type { Product, ProductSizeOption } from "@/lib/products";
 import { AddToCartForm } from "./add-to-cart-form";
 import { ProductPhoto } from "./product-photo";
+import { SizeSelector } from "./size-selector";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  sizes,
+  minPriceCents,
+  maxPriceCents,
+}: {
+  product: Product;
+  /** Sibling sizes of the same fragrance (see lib/products.ts's
+   *  getProductGroups) -- optional and unused by every call site except
+   *  the main grid (app/page.tsx). Omitting it (the "You might also like"
+   *  rail, the wishlist page) keeps this card's single-SKU behavior
+   *  exactly as it's always been. */
+  sizes?: ProductSizeOption[];
+  minPriceCents?: number | null;
+  maxPriceCents?: number | null;
+}) {
   const [open, setOpen] = useState(false);
   const href = `/scent/${product.sku}`;
   const hue = hueFor(product.scent_family);
+  // A group with 2+ sizes shows the size links in place of the usual
+  // price/Add-to-cart/Quick-view block -- picking a size and adding to
+  // cart both stay a detail-page action for those (see the plan this was
+  // built from: cart never has to guess which size a tile-level click
+  // meant). A single-size group (the common case) falls through to the
+  // exact same rendering as before this feature existed.
+  const hasMultipleSizes = (sizes?.length ?? 0) >= 2;
+  const priceLabel =
+    minPriceCents != null && maxPriceCents != null && maxPriceCents > minPriceCents
+      ? `from ${price(minPriceCents)}`
+      : price(minPriceCents ?? product.price_cents);
 
   // Lock background scroll and let Escape close the modal while it's open.
   useEffect(() => {
@@ -62,17 +89,29 @@ export function ProductCard({ product }: { product: Product }) {
 
       <p className="brand">{product.brand}</p>
       <h2 className="name">{product.product_name}</h2>
-      <p className="spec">{[product.concentration, product.size].filter(Boolean).join(" · ")}</p>
+      <p className="spec">
+        {/* Size dropped from this line once there's more than one on
+            record -- the size links below are what actually says which
+            sizes exist; showing just the cheapest one's size here would
+            read as the only size, not a starting point. */}
+        {(hasMultipleSizes ? [product.concentration] : [product.concentration, product.size])
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
       {product.description && <p className="blurb">{product.description}</p>}
 
       <div className="card-foot">
-        <span className="price">{price(product.price_cents)}</span>
+        <span className="price">{priceLabel}</span>
         <span className="stock">{product.scent_family}</span>
       </div>
 
-      <button type="button" className="quick-view-trigger" onClick={() => setOpen(true)}>
-        Quick view
-      </button>
+      {hasMultipleSizes ? (
+        <SizeSelector sizes={sizes!} />
+      ) : (
+        <button type="button" className="quick-view-trigger" onClick={() => setOpen(true)}>
+          Quick view
+        </button>
+      )}
 
       {open &&
         typeof document !== "undefined" &&

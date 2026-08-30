@@ -13,13 +13,19 @@ import type { ProductSizeOption } from "@/lib/products";
  *
  * Renders nothing when there's only one size on record -- a selector with
  * a single, already-selected option isn't a choice, just clutter.
+ *
+ * `currentSku` is optional: the detail page passes its own sku so that
+ * size shows as active; a grid tile representing the whole group (see
+ * app/components/product-card.tsx) has no "current" size to mark, so it's
+ * omitted there and every option renders as a plain, equally-unselected
+ * link.
  */
 export function SizeSelector({
   sizes,
   currentSku,
 }: {
   sizes: ProductSizeOption[];
-  currentSku: string;
+  currentSku?: string;
 }) {
   if (sizes.length < 2) return null;
 

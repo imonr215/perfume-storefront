@@ -90,6 +90,98 @@ export async function getProductsCount(filters: ProductFilters = {}): Promise<nu
   return rows[0]?.count ?? 0;
 }
 
+export type ProductGroup = {
+  product: Product;
+  minPriceCents: number | null;
+  maxPriceCents: number | null;
+  sizes: ProductSizeOption[];
+};
+
+/** One tile per (brand, product name, concentration) rather than one per
+ *  SKU/size row -- a two-size fragrance like Dior Sauvage EDT 50ml/100ml
+ *  is one product to shop, not two unrelated-looking tiles. `DISTINCT ON`
+ *  picks the cheapest size's row as the representative `Product` (its
+ *  photo/description/notes are the same across sizes; only price/size
+ *  legitimately differ), which is why the matching `ORDER BY` ends with
+ *  `price_cents ASC` -- Postgres requires `DISTINCT ON` expressions to be
+ *  the leading `ORDER BY` expressions, so the group key comes first and
+ *  the tiebreak that actually picks which row wins comes last. The
+ *  min/max window aggregates ride along on every row of a group before
+ *  `DISTINCT ON` collapses it down to one, so they survive on the winning
+ *  row -- same "from $X" data the size-selector needs, sourced in the same
+ *  query rather than a second pass. */
+export async function getProductGroups(
+  filters: ProductFilters = {},
+  page = 1
+): Promise<ProductGroup[]> {
+  const where = buildProductsWhere(filters);
+  const offset = (Math.max(1, page) - 1) * PRODUCTS_PAGE_SIZE;
+
+  const rows = await sql<
+    (Product & { group_min_price: number | null; group_max_price: number | null })[]
+  >`
+    WITH grouped AS (
+      SELECT DISTINCT ON (brand, product_name, concentration)
+        sku, brand, product_name, concentration, size, price_cents,
+        scent_family, gender, top_notes, heart_notes, base_notes, description,
+        image_url, image_transparent_url,
+        MIN(price_cents) OVER (PARTITION BY brand, product_name, concentration) AS group_min_price,
+        MAX(price_cents) OVER (PARTITION BY brand, product_name, concentration) AS group_max_price
+      FROM dim_products
+      WHERE ${where}
+      ORDER BY brand, product_name, concentration, price_cents ASC
+    )
+    SELECT * FROM grouped
+    ORDER BY brand, product_name
+    LIMIT ${PRODUCTS_PAGE_SIZE} OFFSET ${offset}
+  `;
+
+  // Sibling sizes for each of this page's (<=24) groups -- one call per
+  // group to the same getProductSizes() the detail page's size selector
+  // already uses, run concurrently. Not a batched array_agg query: this
+  // page already fires several concurrent queries per load (see lib/db.ts's
+  // pool-sizing comment), and reusing the existing, already-correct
+  // function beats a second, fragile parallel-array aggregation of the
+  // same data.
+  const sizesByGroup = await Promise.all(
+    rows.map((r) => getProductSizes(r.brand, r.product_name, r.concentration))
+  );
+
+  return rows.map((r, i) => ({
+    product: {
+      sku: r.sku,
+      brand: r.brand,
+      product_name: r.product_name,
+      concentration: r.concentration,
+      size: r.size,
+      price_cents: r.price_cents,
+      scent_family: r.scent_family,
+      gender: r.gender,
+      top_notes: r.top_notes,
+      heart_notes: r.heart_notes,
+      base_notes: r.base_notes,
+      description: r.description,
+      image_url: r.image_url,
+      image_transparent_url: r.image_transparent_url,
+    },
+    minPriceCents: r.group_min_price,
+    maxPriceCents: r.group_max_price,
+    sizes: sizesByGroup[i],
+  }));
+}
+
+export async function getProductGroupsCount(filters: ProductFilters = {}): Promise<number> {
+  const where = buildProductsWhere(filters);
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM (
+      SELECT DISTINCT brand, product_name, concentration
+      FROM dim_products
+      WHERE ${where}
+    ) t
+  `;
+  return rows[0]?.count ?? 0;
+}
+
 /** Unfiltered grab-bag for the "nothing matched" fallback -- random rather
  *  than always the same alphabetical slice, so a dead-end search still
  *  turns into a bit of browsing instead of the same four bottles every time. */
