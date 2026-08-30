@@ -239,17 +239,30 @@ export async function getConcentrations(): Promise<string[]> {
   return rows.map((r) => r.concentration);
 }
 
-/** Distinct sizes on record, for the top-level size filter (not to be
+/** Common sizes on record, for the top-level size filter (not to be
  *  confused with getProductSizes, which is scoped to one fragrance's own
- *  siblings). Sorted by the leading number ("50ml" before "100ml") rather
+ *  siblings). The catalog has 20+ distinct sizes, but it's a steep drop-off
+ *  -- a handful (100ml, 50ml, 90ml...) cover the great majority of
+ *  products, then a long tail of one-off odd sizes (4ml, 7.5ml, a handful
+ *  of 1-count sizes from gift sets/travel minis). A dropdown listing all of
+ *  them is exactly the "too many options" a kiosk/tablet filter shouldn't
+ *  have, so this only returns sizes with a real number of products behind
+ *  them (currently a size needs 10+ products on record to show up here --
+ *  chosen from the actual distribution: it's the natural break right after
+ *  the common sizes and before the tail starts, not an arbitrary round
+ *  number). Sorted by the leading number ("50ml" before "100ml") rather
  *  than alphabetically -- same reasoning and NaN-safety as
  *  getProductSizes' sort, just applied to the whole catalog's distinct
  *  values instead of one product's siblings. */
+const MIN_PRODUCTS_FOR_SIZE_FILTER = 10;
+
 export async function getSizes(): Promise<string[]> {
   const rows = await sql<{ size: string }[]>`
-    SELECT DISTINCT size
+    SELECT size
     FROM dim_products
     WHERE is_active AND size IS NOT NULL
+    GROUP BY size
+    HAVING count(*) >= ${MIN_PRODUCTS_FOR_SIZE_FILTER}
   `;
   return rows
     .map((r) => r.size)
