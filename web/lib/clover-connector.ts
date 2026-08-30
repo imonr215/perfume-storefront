@@ -53,6 +53,18 @@ export type SaleResult =
   | { success: true; paymentId: string; amountCents: number }
   | { success: false; reason: string };
 
+// Neither onDeviceReady/onDeviceError nor onSaleResponse is guaranteed to
+// ever fire -- an offline/unpaired/unreachable Flex just leaves the
+// connect()/sale() Promise pending forever, which (found during review, no
+// hardware needed to see it) left the checkout button stuck on "Connecting
+// to the kiosk terminal..."/"Waiting on terminal..." with no error and no
+// way for a customer or staff member to recover short of reloading the
+// page. sale() gets the longer budget -- unlike connect(), a real card tap
+// + PIN + processing round trip can legitimately take a while (the existing
+// UI copy already says "this can take up to a minute").
+const CONNECT_TIMEOUT_MS = 30_000;
+const SALE_TIMEOUT_MS = 120_000;
+
 export type CloverConnectorHandle = {
   connect: () => Promise<void>;
   sale: (amountCents: number, externalId: string) => Promise<SaleResult>;
@@ -122,15 +134,40 @@ export function createCloverConnector(params: {
   return {
     connect() {
       return new Promise<void>((resolve, reject) => {
-        readyResolve = resolve;
-        readyReject = reject;
+        const timer = setTimeout(() => {
+          readyResolve = readyReject = null;
+          reject(
+            new Error(
+              "Couldn't reach the terminal at the kiosk -- check that it's powered on and connected."
+            )
+          );
+        }, CONNECT_TIMEOUT_MS);
+        readyResolve = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        readyReject = (err) => {
+          clearTimeout(timer);
+          reject(err);
+        };
         connector.initializeConnection();
       });
     },
 
     sale(amountCents, externalId) {
-      return new Promise<SaleResult>((resolve) => {
-        saleResolve = resolve;
+      return new Promise<SaleResult>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          saleResolve = null;
+          reject(
+            new Error(
+              "The terminal didn't respond in time. Please try again or ask a staff member for help."
+            )
+          );
+        }, SALE_TIMEOUT_MS);
+        saleResolve = (result) => {
+          clearTimeout(timer);
+          resolve(result);
+        };
         const saleRequest = new remotepay.SaleRequest();
         saleRequest.setExternalId(externalId);
         saleRequest.setAmount(amountCents);

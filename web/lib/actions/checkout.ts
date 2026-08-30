@@ -42,6 +42,11 @@ export async function checkoutAction(
   // completed payment, not to initiate one.
   const cloverPaymentId = String(formData.get("cloverPaymentId") ?? "");
   const cloverExternalId = String(formData.get("cloverExternalId") ?? "");
+  const cloverAmountCentsRaw = formData.get("cloverAmountCents");
+  const chargedAmountCents =
+    cloverAmountCentsRaw != null && cloverAmountCentsRaw !== ""
+      ? Number(cloverAmountCentsRaw)
+      : null;
   const contactName = String(formData.get("contactName") ?? "").trim();
   const contactEmail = String(formData.get("contactEmail") ?? "").trim().toLowerCase();
   const contactPhone = String(formData.get("contactPhone") ?? "").trim();
@@ -91,6 +96,26 @@ export async function checkoutAction(
     subtotalCents += product.price_cents * item.quantity;
   }
 
+  // The charge on the card is already final and irreversible from here --
+  // the terminal ran it moments ago, on the amount computed when the
+  // checkout page loaded. If a price changed between that page load and
+  // this submission, `subtotalCents` (recomputed fresh, above) and
+  // `chargedAmountCents` (what actually left the customer's card) can
+  // disagree. There's nothing to roll back at this point, so this can't
+  // block the order -- but recording the freshly-recomputed number as if
+  // it were what was paid would silently paper over a real mismatch.
+  // `total_cents` reflects what was actually charged; `subtotal_cents`
+  // stays the catalog figure, so a mismatch between the two columns is
+  // itself the audit trail for whoever reconciles it.
+  if (chargedAmountCents != null && chargedAmountCents !== subtotalCents) {
+    console.error(
+      `[checkout] charged/catalog amount mismatch for payment ${cloverPaymentId}: ` +
+        `terminal charged ${chargedAmountCents}c, catalog total is ${subtotalCents}c. ` +
+        `Recording the charged amount; needs manual reconciliation.`
+    );
+  }
+  const totalCents = chargedAmountCents ?? subtotalCents;
+
   let orderId: string;
   try {
     const cloverCustomerId = session
@@ -103,7 +128,7 @@ export async function checkoutAction(
         subtotal_cents, total_cents, contact_name, contact_email, contact_phone
       ) VALUES (
         ${session?.id ?? null}, ${session ? null : contactEmail}, ${cloverExternalId}, ${cloverPaymentId}, 'paid',
-        ${subtotalCents}, ${subtotalCents}, ${contactName}, ${contactEmail}, ${contactPhone}
+        ${subtotalCents}, ${totalCents}, ${contactName}, ${contactEmail}, ${contactPhone}
       )
       RETURNING id
     `;

@@ -90,6 +90,11 @@ export function CheckoutForm({
     const formData = new FormData(formRef.current);
     formData.set("cloverPaymentId", result.paymentId);
     formData.set("cloverExternalId", externalId);
+    // The amount actually charged on the terminal, not just the id -- the
+    // server independently recomputes today's catalog total and needs both
+    // numbers to tell "matches" from "the price changed between page load
+    // and the card tap" instead of silently trusting one or the other.
+    formData.set("cloverAmountCents", String(result.amountCents));
     // Same reasoning as the old Square flow's explicit startTransition: the
     // action is being called after an await (the sale round trip), outside
     // the synchronous scope React auto-wraps for a plain <form action={}>.
@@ -104,6 +109,7 @@ export function CheckoutForm({
     <form ref={formRef} onSubmit={handleSubmit} className="form checkout-form" noValidate>
       <input type="hidden" name="cloverPaymentId" />
       <input type="hidden" name="cloverExternalId" />
+      <input type="hidden" name="cloverAmountCents" />
 
       <fieldset>
         <legend>Pickup</legend>
