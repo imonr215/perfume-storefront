@@ -140,9 +140,13 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--edge);
   background: var(--honey);
   border-radius: 999px;
-  padding: 0.5rem 0.9rem;
+  /* 44px+ tall -- Apple's own touch-target minimum (HIG) and the old
+     0.5rem padding fell well short of it at ~35px, confirmed via a real
+     iPad-viewport measurement. This is the control a kiosk shopper taps
+     most, so it's the one that mattered most to fix. */
+  padding: 0.8rem 0.9rem;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--ink);
   cursor: pointer;
 }
@@ -296,7 +300,8 @@ a { color: inherit; text-decoration: none; }
 .pagination-link {
   border: 1px solid var(--edge);
   border-radius: 999px;
-  padding: 0.55rem 1.1rem;
+  /* Same kiosk touch-target pass as .filter-field select -- was ~37px. */
+  padding: 0.75rem 1.2rem;
   font-size: 0.88rem;
   color: var(--ink);
 }
@@ -393,7 +398,12 @@ span.pagination-link[aria-disabled="true"] {
   background: var(--paper);
   border: 1px solid var(--edge);
   border-radius: 999px;
-  padding: 0.32rem 0.75rem;
+  /* Was ~24px tall -- confirmed the worst offender of a kiosk-viewport
+     touch-target pass (this is the single most-tapped control on the
+     whole grid, one per tile). Bumped padding, not font-size, to keep the
+     badge's small visual weight on the card while still clearing a real
+     tap target. */
+  padding: 0.75rem 0.9rem;
   font-size: 0.72rem;
   letter-spacing: 0.02em;
   color: var(--ink-soft);
@@ -529,7 +539,9 @@ span.pagination-link[aria-disabled="true"] {
   border: 1px solid var(--edge);
   background: var(--paper);
   border-radius: 999px;
-  padding: 0.42rem 0.95rem;
+  /* Bumped from a measured ~33px tall, same kiosk touch-target pass as
+     .filter-field select and .quick-view-trigger. */
+  padding: 0.62rem 1rem;
   font-size: 0.9rem;
   color: var(--ink-soft);
   text-decoration: none;
@@ -875,7 +887,8 @@ span.pagination-link[aria-disabled="true"] {
   background: none;
   border: 1px solid var(--edge);
   border-radius: 999px;
-  padding: 0.4rem 0.9rem;
+  /* Same kiosk touch-target pass as .filter-field select -- was ~30px. */
+  padding: 0.7rem 1rem;
   font-size: 0.82rem;
   color: var(--ink-soft);
   cursor: pointer;

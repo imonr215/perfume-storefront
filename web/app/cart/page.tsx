@@ -110,7 +110,16 @@ export default async function CartPage() {
             <span>Subtotal</span>
             <span className="cart-total">{price(subtotalCents)}</span>
           </div>
-          <p className="cart-note">Shipping and any applicable tax are calculated at checkout.</p>
+          {/* No shipping (pickup-only, see root CLAUDE.md) and no sales tax
+              configured on the Clover merchant yet -- this subtotal IS the
+              total, not an estimate pending fees added at checkout. The old
+              copy here ("Shipping and any applicable tax are calculated at
+              checkout") predates that and was actively misleading: it
+              promised a shipping option and a tax line that never show up. */}
+          <p className="cart-note">
+            This is the total -- no shipping charge, no sales tax added.
+            You&apos;ll pay it in person on the terminal at our kiosk.
+          </p>
 
           <Link href="/checkout" className="buy" style={{ display: "inline-block" }}>
             Checkout
