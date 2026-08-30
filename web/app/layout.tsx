@@ -34,6 +34,28 @@ export const metadata: Metadata = {
   title: "Perfumery at The Fashion District | fragrance counter",
   description:
     "A small fragrance counter. Browse the full shelf, find your scent, and reorder the one you already love.",
+  // Older iOS specifically looks for apple-mobile-web-app-* meta tags
+  // (rather than reading display: "standalone" out of manifest.ts) to
+  // decide whether "Add to Home Screen" opens full-screen with no Safari
+  // chrome -- part of the same kiosk iPad/tablet work as manifest.ts.
+  // apple-touch-icon.png in /public is picked up automatically by iOS's
+  // own convention (no explicit tag needed for that part).
+  appleWebApp: {
+    capable: true,
+    title: "The Fashion District",
+    statusBarStyle: "black-translucent",
+  },
+  // Confirmed live: this Next version's appleWebApp.capable only emits the
+  // newer, unprefixed "mobile-web-app-capable" (Chrome/Android's name).
+  // iOS/iPadOS specifically has only ever reliably honored the older
+  // "apple-" prefixed tag for whether Add to Home Screen opens standalone
+  // (no Safari chrome) vs. as a regular bookmark -- exactly the behavior
+  // this whole manifest/meta-tag pass exists for on the iPad. Added
+  // explicitly via `other` since there's no dedicated Metadata field for
+  // it in this version.
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export default async function RootLayout({
