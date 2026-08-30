@@ -71,10 +71,22 @@ export default async function Home({
     getSizes(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PRODUCTS_PAGE_SIZE));
+  // An empty page can mean two different things: the filters themselves
+  // matched nothing (total === 0), or they matched plenty but `page` (from
+  // a hand-edited URL, a stale bookmark, or the catalog having shrunk since
+  // a link was saved) is past the last real page. Only the first case is
+  // actually "nothing matches" -- conflating them made a search that had
+  // 300+ real matches say "nothing matches those filters" just because
+  // ?page=9999 was in the URL.
+  const pageOutOfRange = total > 0 && page > totalPages;
 
   // A dead-end search/filter combo shouldn't be a dead end for the visit --
   // offer a few random bottles to keep browsing instead of just stopping.
-  const fallbackProducts = groups.length === 0 ? await getRandomProducts(4) : [];
+  // Skipped for an out-of-range page: the filters already have real
+  // matches (just not on this page), so a random-bottles fallback would be
+  // both unnecessary and a non-sequitur next to "back to page 1".
+  const fallbackProducts =
+    groups.length === 0 && !pageOutOfRange ? await getRandomProducts(4) : [];
 
   // Pagination links need every OTHER current param preserved, with just
   // `page` swapped -- built from the raw searchParams rather than the
@@ -212,11 +224,24 @@ export default async function Home({
       {groups.length === 0 ? (
         <>
           <p className="empty">
-            Nothing matches those filters yet. Try loosening one, or{" "}
-            <Link href="/" style={{ color: "var(--amber)" }}>
-              see everything
-            </Link>
-            .
+            {pageOutOfRange ? (
+              <>
+                That page doesn&apos;t exist -- there {totalPages === 1 ? "is" : "are"} only{" "}
+                {totalPages} {totalPages === 1 ? "page" : "pages"} of results here.{" "}
+                <Link href={pageHref(1)} style={{ color: "var(--amber)" }}>
+                  Back to page 1
+                </Link>
+                .
+              </>
+            ) : (
+              <>
+                Nothing matches those filters yet. Try loosening one, or{" "}
+                <Link href="/" style={{ color: "var(--amber)" }}>
+                  see everything
+                </Link>
+                .
+              </>
+            )}
           </p>
           {fallbackProducts.length > 0 && (
             <section className="similar-section">
