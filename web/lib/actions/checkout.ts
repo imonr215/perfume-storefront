@@ -5,75 +5,53 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { createSession, getSession, hashPassword } from "@/lib/auth";
 import { clearCart, getCart, readCartId } from "@/lib/cart";
-import { createAddress } from "@/lib/addresses";
-import {
-  createOrderAndPayment,
-  findOrCreateSquareCustomer,
-  squareApiErrors,
-  type Fulfillment,
-  type SquareLineItem,
-} from "@/lib/square";
+import { findOrCreateCloverCustomer, cloverApiErrors } from "@/lib/clover";
 import { isValidEmail } from "@/lib/validate";
 
 export type CheckoutState = { error: string } | undefined;
 
-type ShippingAddress = {
-  addressLine1: string;
-  addressLine2: string | null;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-};
-
-/** Reuses the Square customer already linked to this account, if any, and
+/** Reuses the Clover customer already linked to this account, if any, and
  *  attaches one lazily on first order otherwise. */
-async function resolveSquareCustomerForAccount(
+async function resolveCloverCustomerForAccount(
   customerId: string,
   email: string,
   name: string
 ): Promise<string> {
-  const rows = await sql<{ square_customer_id: string | null }[]>`
-    SELECT square_customer_id FROM store_customers WHERE id = ${customerId}
+  const rows = await sql<{ clover_customer_id: string | null }[]>`
+    SELECT clover_customer_id FROM store_customers WHERE id = ${customerId}
   `;
-  const existing = rows[0]?.square_customer_id;
+  const existing = rows[0]?.clover_customer_id;
   if (existing) return existing;
 
-  const squareCustomerId = await findOrCreateSquareCustomer(email, name);
+  const cloverCustomerId = await findOrCreateCloverCustomer(email, name);
   await sql`
-    UPDATE store_customers SET square_customer_id = ${squareCustomerId}, updated_at = now()
+    UPDATE store_customers SET clover_customer_id = ${cloverCustomerId}, updated_at = now()
     WHERE id = ${customerId}
   `;
-  return squareCustomerId;
+  return cloverCustomerId;
 }
 
 export async function checkoutAction(
   _prev: CheckoutState,
   formData: FormData
 ): Promise<CheckoutState> {
-  const sourceId = String(formData.get("sourceId") ?? "");
-  const fulfillmentType = formData.get("fulfillmentType") === "PICKUP" ? "PICKUP" : "SHIPMENT";
+  // Unlike the old Square flow, the charge has ALREADY happened by the time
+  // this runs -- the client connected to the kiosk's Flex device via
+  // web/lib/clover-connector.ts and completed a real sale before ever
+  // calling this action. This action's job is to validate and record that
+  // completed payment, not to initiate one.
+  const cloverPaymentId = String(formData.get("cloverPaymentId") ?? "");
+  const cloverExternalId = String(formData.get("cloverExternalId") ?? "");
   const contactName = String(formData.get("contactName") ?? "").trim();
   const contactEmail = String(formData.get("contactEmail") ?? "").trim().toLowerCase();
   const contactPhone = String(formData.get("contactPhone") ?? "").trim();
-  const addressLine1 = String(formData.get("addressLine1") ?? "").trim();
-  const addressLine2 = String(formData.get("addressLine2") ?? "").trim();
-  const city = String(formData.get("city") ?? "").trim();
-  const state = String(formData.get("state") ?? "").trim();
-  const postalCode = String(formData.get("postalCode") ?? "").trim();
-  const country = String(formData.get("country") ?? "US").trim() || "US";
   const createAccount = formData.get("createAccount") === "on";
   const newPassword = String(formData.get("newPassword") ?? "");
 
-  if (!sourceId) return { error: "Card details didn't come through. Please try again." };
+  if (!cloverPaymentId) return { error: "Payment didn't come through. Please try again." };
   if (!contactName) return { error: "Enter the name for this order." };
   if (!isValidEmail(contactEmail)) return { error: "Enter a valid email address." };
-  if (fulfillmentType === "SHIPMENT" && (!addressLine1 || !city || !state || !postalCode)) {
-    return { error: "Fill in the full shipping address." };
-  }
-  if (fulfillmentType === "PICKUP" && !contactPhone) {
-    return { error: "Enter a phone number so we can reach you when it's ready." };
-  }
+  if (!contactPhone) return { error: "Enter a phone number so we can reach you when it's ready." };
 
   const session = await getSession();
   if (!session && createAccount && newPassword.length < 8) {
@@ -89,104 +67,43 @@ export async function checkoutAction(
     return { error: `${unavailable.product_name} is no longer available. Remove it from your cart.` };
   }
 
-  // Re-read prices and Square variation ids fresh from the catalog rather
-  // than trusting the cart join above -- a price change between "add to
-  // cart" and "pay" must not charge the old number.
+  // Re-read prices fresh from the catalog rather than trusting the cart
+  // join above -- still worth doing even though payment already happened,
+  // as a sanity check against a stale/manipulated cart total reaching the
+  // terminal in the first place (the amount sent to the device is computed
+  // from this same cart on the client, moments earlier).
   const skus = items.map((item) => item.sku);
   const products = await sql<
-    {
-      sku: string;
-      square_variation_id: string | null;
-      price_cents: number | null;
-      product_name: string;
-      brand: string;
-    }[]
+    { sku: string; price_cents: number | null; product_name: string; brand: string }[]
   >`
-    SELECT sku, square_variation_id, price_cents, product_name, brand
+    SELECT sku, price_cents, product_name, brand
     FROM dim_products
     WHERE sku = ANY(${skus})
   `;
   const bySku = new Map(products.map((p) => [p.sku, p]));
 
-  const lineItems: SquareLineItem[] = [];
   let subtotalCents = 0;
   for (const item of items) {
     const product = bySku.get(item.sku);
-    if (!product?.square_variation_id || product.price_cents == null) {
+    if (!product || product.price_cents == null) {
       return { error: `${item.product_name} can't be ordered online right now.` };
     }
     subtotalCents += product.price_cents * item.quantity;
-    lineItems.push({
-      catalogObjectId: product.square_variation_id,
-      quantity: item.quantity,
-      name: `${product.brand} ${product.product_name}`,
-    });
   }
-
-  // Pickup orders never touch the address fields, so shippingAddress stays
-  // null -- also what order/[id]/page.tsx and account/orders already use to
-  // tell a pickup order apart from a shipped one (no separate column).
-  const shippingAddress: ShippingAddress | null =
-    fulfillmentType === "SHIPMENT"
-      ? {
-          addressLine1,
-          addressLine2: addressLine2 || null,
-          city,
-          state,
-          postalCode,
-          country,
-        }
-      : null;
-
-  const fulfillment: Fulfillment =
-    fulfillmentType === "PICKUP"
-      ? {
-          type: "PICKUP",
-          pickup: {
-            displayName: contactName,
-            emailAddress: contactEmail,
-            phoneNumber: contactPhone || undefined,
-          },
-        }
-      : {
-          type: "SHIPMENT",
-          shipping: {
-            displayName: contactName,
-            emailAddress: contactEmail,
-            phoneNumber: contactPhone || undefined,
-            address: {
-              addressLine1,
-              addressLine2: addressLine2 || null,
-              locality: city,
-              administrativeDistrictLevel1: state,
-              postalCode,
-              country,
-            },
-          },
-        };
 
   let orderId: string;
   try {
-    const squareCustomerId = session
-      ? await resolveSquareCustomerForAccount(session.id, contactEmail, contactName)
-      : await findOrCreateSquareCustomer(contactEmail, contactName);
-
-    const { squareOrderId, squarePaymentId, totalCents } = await createOrderAndPayment({
-      items: lineItems,
-      sourceId,
-      customerId: squareCustomerId,
-      buyerEmail: contactEmail,
-      fulfillment,
-    });
+    const cloverCustomerId = session
+      ? await resolveCloverCustomerForAccount(session.id, contactEmail, contactName)
+      : await findOrCreateCloverCustomer(contactEmail, contactName);
 
     const orderRows = await sql<{ id: string }[]>`
       INSERT INTO store_orders (
-        customer_id, guest_email, square_order_id, square_payment_id, status,
-        subtotal_cents, total_cents, contact_name, contact_email, contact_phone, shipping_address
+        customer_id, guest_email, clover_order_id, clover_payment_id, status,
+        subtotal_cents, total_cents, contact_name, contact_email, contact_phone
       ) VALUES (
-        ${session?.id ?? null}, ${session ? null : contactEmail}, ${squareOrderId}, ${squarePaymentId}, 'paid',
-        ${subtotalCents}, ${totalCents}, ${contactName}, ${contactEmail}, ${contactPhone || null},
-        ${shippingAddress ? sql.json(shippingAddress) : null}
+        ${session?.id ?? null}, ${session ? null : contactEmail}, ${cloverExternalId}, ${cloverPaymentId}, 'paid',
+        ${subtotalCents}, ${subtotalCents}, ${contactName}, ${contactEmail}, ${contactPhone}
       )
       RETURNING id
     `;
@@ -209,41 +126,24 @@ export async function checkoutAction(
       if (!alreadyRegistered[0]) {
         const passwordHash = await hashPassword(newPassword);
         const createdRows = await sql<{ id: string }[]>`
-          INSERT INTO store_customers (email, password_hash, name, square_customer_id)
-          VALUES (${contactEmail}, ${passwordHash}, ${contactName}, ${squareCustomerId})
+          INSERT INTO store_customers (email, password_hash, name, clover_customer_id)
+          VALUES (${contactEmail}, ${passwordHash}, ${contactName}, ${cloverCustomerId})
           RETURNING id
         `;
         const newCustomerId = createdRows[0].id;
         await sql`
           UPDATE store_orders SET customer_id = ${newCustomerId}, guest_email = NULL WHERE id = ${orderId}
         `;
-        await createAddress(
-          newCustomerId,
-          {
-            label: null,
-            recipientName: contactName,
-            phone: contactPhone || null,
-            addressLine1,
-            addressLine2: addressLine2 || null,
-            city,
-            state,
-            postalCode,
-            country,
-          },
-          true
-        );
         await createSession(newCustomerId);
       }
       // If the email is already registered, we leave the order as a guest
       // order rather than silently attaching it to someone else's account.
     }
   } catch (err) {
-    const squareErrors = squareApiErrors(err);
-    if (squareErrors) {
+    const cloverErrors = cloverApiErrors(err);
+    if (cloverErrors) {
       return {
-        error:
-          squareErrors[0]?.detail ??
-          "The payment didn't go through. Please check your card and try again.",
+        error: cloverErrors[0]?.detail ?? "Something went wrong recording your order. Please try again.",
       };
     }
     console.error("[checkout] failed", err);

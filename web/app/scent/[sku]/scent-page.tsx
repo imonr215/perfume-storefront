@@ -76,10 +76,11 @@ export default async function ScentPage({
 
             <p className="detail-price">{price(p.price_cents)}</p>
 
-            {/* Card details never touch our server: checkout tokenizes with
-                Square's Web Payments SDK client-side. Two separate <form>s
-                side by side (not nested -- HTML forbids that) so "add to
-                cart" and "save for later" submit independently. */}
+            {/* Card details never touch our server: checkout pays live on
+                the kiosk's Flex device via Clover's Remote Pay Cloud SDK.
+                Two separate <form>s side by side (not nested -- HTML
+                forbids that) so "add to cart" and "save for later" submit
+                independently. */}
             <div className="detail-actions">
               <AddToCartForm sku={p.sku} quantityId="quantity" />
 

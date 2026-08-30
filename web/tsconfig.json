@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "remote-pay-cloud": ["./types/remote-pay-cloud-shim.ts"]
     }
   },
   "include": [

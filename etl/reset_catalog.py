@@ -1,13 +1,17 @@
 """
-reset_catalog.py -- delete every catalog object in the target Square environment.
+reset_catalog.py -- delete every item (and item group) in the target Clover
+merchant's catalog.
 
-Needed when SKUs change: Square's BatchUpsertCatalogObjects treats a
-'#'-prefixed id as a NEW object, so re-importing with different SKUs would
-create a second copy of the catalog rather than updating it. Wiping first
-guarantees one clean set.
+Needed when SKUs change: re-running clover_import.py against a catalog with
+stale item groups/attributes from a previous SKU scheme would create a
+second, parallel set rather than cleanly replacing it (Clover's item-group
+model has no batch-upsert/idempotency-key concept to lean on the way
+Square's catalog API does -- see clover_client.py). Wiping first guarantees
+one clean set.
 
-SAFETY: refuses to run against production unless --i-know-this-is-production
-is passed. This deletes the entire catalog; there is no undo.
+SAFETY: refuses to run against a merchant id that looks like production
+unless --i-know-this-is-production is passed. This deletes the entire
+catalog; there is no undo.
 
 Usage:
     python reset_catalog.py            # list what would be deleted
@@ -20,17 +24,7 @@ import sys
 
 from dotenv import load_dotenv
 
-
-def get_client():
-    from square import Square
-    from square.environment import SquareEnvironment
-
-    token = os.environ.get("SQUARE_ACCESS_TOKEN")
-    if not token:
-        sys.exit("SQUARE_ACCESS_TOKEN is not set in .env")
-    env_name = os.environ.get("SQUARE_ENVIRONMENT", "sandbox").lower()
-    env = SquareEnvironment.PRODUCTION if env_name == "production" else SquareEnvironment.SANDBOX
-    return Square(environment=env, token=token), env_name
+from clover_client import get_client
 
 
 def main():
@@ -40,36 +34,40 @@ def main():
     args = ap.parse_args()
 
     load_dotenv()
-    client, env_name = get_client()
 
+    env_name = os.environ.get("CLOVER_ENVIRONMENT", "sandbox").lower()
     if env_name == "production" and not args.i_know_this_is_production:
         sys.exit("Refusing to wipe a PRODUCTION catalog. "
                  "Pass --i-know-this-is-production if you really mean it.")
 
-    item_ids = []
-    names = []
-    for obj in client.catalog.list(types="ITEM"):
-        item_ids.append(obj.id)
-        item_data = getattr(obj, "item_data", None)
-        names.append(getattr(item_data, "name", "?") if item_data else "?")
+    client = get_client()
+
+    items = list(client.list_items())
+    item_groups = client.get("/item_groups").get("elements") or []
 
     print(f"Environment: {env_name}")
-    print(f"Found {len(item_ids)} catalog items.")
-    if not item_ids:
+    print(f"Found {len(items)} item(s), {len(item_groups)} item group(s).")
+    if items:
+        sample_names = [i.get("name", "?") for i in items[:3]]
+        print("  e.g. " + ", ".join(sample_names) + (" ..." if len(items) > 3 else ""))
+    if not items and not item_groups:
         return
-    print("  e.g. " + ", ".join(names[:3]) + (" ..." if len(names) > 3 else ""))
 
     if not args.confirm:
         print("\nDry run. Re-run with --confirm to delete these.")
         return
 
-    # Deleting an ITEM cascades to its variations.
     deleted = 0
-    for i in range(0, len(item_ids), 200):
-        chunk = item_ids[i:i + 200]
-        client.catalog.batch_delete(object_ids=chunk)
-        deleted += len(chunk)
-        print(f"  deleted {deleted}/{len(item_ids)}")
+    for item in items:
+        client.delete_item(item["id"])
+        deleted += 1
+        if deleted % 50 == 0:
+            print(f"  deleted {deleted}/{len(items)} items")
+    print(f"  deleted {deleted}/{len(items)} items")
+
+    for group in item_groups:
+        client.delete_item_group(group["id"])
+    print(f"  deleted {len(item_groups)} item group(s)")
     print("Catalog cleared.")
 
 

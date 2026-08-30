@@ -23,15 +23,15 @@ export default function PrivacyPage() {
       <ul>
         <li>Your name and phone number</li>
         <li>Your email (used for your receipt and, if you create one, your account)</li>
-        <li>Your shipping address, if you choose shipping over pickup</li>
       </ul>
       <p>
-        If you create an account, we also store your saved addresses, your
-        order history, and your wishlist. We do not collect or store your
-        card number. Card details are entered directly into a payment form
-        provided by Square and are tokenized in your browser before anything
-        reaches our server; we only ever see a one-time payment token, never
-        the card itself.
+        If you create an account, we also store any addresses you choose to
+        save, your order history, and your wishlist. We do not collect or
+        store your card number. Orders placed
+        through this site are paid for by tapping or inserting your card
+        directly on the payment terminal at our kiosk, not through this
+        website -- your card details never reach our server or your browser
+        at all.
       </p>
 
       <h2>Cookies</h2>
@@ -45,17 +45,12 @@ export default function PrivacyPage() {
 
       <h2>How we use it</h2>
       <p>
-        To fulfill your order: charging your card via Square, preparing
-        your pickup or shipment, and sending your receipt. If you have an
+        To fulfill your order: preparing your pickup and sending your
+        receipt once payment completes at the kiosk. If you have an
         account, we also use it to show you your order history, saved
-        addresses, and wishlist. Square acts as our payment processor for
-        this; see{" "}
-        <a
-          href="https://squareup.com/us/en/legal/general/privacy"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Square&apos;s own privacy policy
+        addresses, and wishlist. Clover acts as our payment processor; see{" "}
+        <a href="https://www.clover.com/privacy-policy" target="_blank" rel="noreferrer">
+          Clover&apos;s own privacy policy
         </a>{" "}
         for how they handle payment data.
       </p>

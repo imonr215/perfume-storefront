@@ -1,4 +1,4 @@
-squareup>=42
+requests
 pandas
 openpyxl
 python-dotenv

@@ -46,17 +46,19 @@ export default function TermsPage() {
 
       <h2>Payment</h2>
       <p>
-        Card payments are processed by Square. We never see or store your
-        full card number; Square handles that entirely. See our{" "}
+        Card payments are processed by Clover, tapped or inserted directly on
+        the terminal at our kiosk. We never see or store your full card
+        number; Clover handles that entirely. See our{" "}
         <Link href="/privacy">Privacy Policy</Link> for details on what
         information we do collect.
       </p>
 
-      <h2>Shipping &amp; pickup</h2>
+      <h2>Pickup</h2>
       <p>
-        You choose pickup at our kiosk or shipping to an address at checkout.
-        See our <Link href="/refunds">Refund Policy</Link> for what happens
-        if something arrives damaged or wrong.
+        Orders placed through this site are for pickup at our kiosk only, and
+        payment is completed there when you arrive. See our{" "}
+        <Link href="/refunds">Refund Policy</Link> for what happens if
+        something turns out damaged or wrong.
       </p>
 
       <h2>Site content</h2>

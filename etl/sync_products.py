@@ -1,18 +1,26 @@
 """
 sync_products.py -- populate dim_products from the inventory spreadsheet,
-enriched with the Square catalog ids.
+enriched with the Clover catalog ids.
 
-Why both sources: the spreadsheet holds the scent attributes that Square has no
-field for (family, note pyramid, gender) and that the recommender runs on. Square
-holds the authoritative variation/item ids that order webhooks will reference.
-dim_products is where the two meet, so a line item can join to a scent profile.
+Why both sources: the spreadsheet holds the scent attributes that Clover has
+no field for (family, note pyramid, gender) and that the recommender runs
+on. Clover holds the authoritative item/item-group ids that order webhooks
+will reference. dim_products is where the two meet, so a line item can join
+to a scent profile.
 
 Matching is on SKU, which is why the SKU scheme (BRAND-NAME-CONCENTRATION-SIZE)
 is generated identically on both sides.
 
+Clover's catalog model has no single "variation" object the way Square
+does -- each size is its own top-level item, grouped under an item_group
+(see clover_import.py). dim_products.clover_item_id holds the item_group's
+id (shared across every size of the same fragrance);
+dim_products.clover_variation_id holds the individual item's id (unique per
+SKU/size) -- this is what fact_line_items joins against.
+
 Usage:
-    python sync_products.py --file Perfume_Inventory_100.xlsx
-    python sync_products.py --file Perfume_Inventory_100.xlsx --dry-run
+    python sync_products.py --file Perfume_Inventory_Real.xlsx
+    python sync_products.py --file Perfume_Inventory_Real.xlsx --dry-run
 """
 
 import argparse
@@ -21,27 +29,17 @@ import sys
 
 import pandas as pd
 import psycopg
-import truststore
 from dotenv import load_dotenv
 
+from clover_client import get_client
 from sku import make_sku
-
-# This machine's Python/OpenSSL doesn't do the AIA chasing that Windows'
-# native TLS stack (what curl uses) does to fetch a missing intermediate
-# cert -- confirmed live as CERTIFICATE_VERIFY_FAILED against Square's API,
-# same underlying issue as the one documented for etl/sync_fraganty_images.py
-# in root CLAUDE.md. truststore patches ssl to use the OS's own certificate
-# verification instead of a static bundle, which is the real fix (not
-# another one-off curl shim) since every Python HTTPS call on this machine
-# hits the same problem, not just this script's.
-truststore.inject_into_ssl()
 
 SHEET_NAME = "Inventory"
 HEADER_ROW = 1
 
 
 # --------------------------------------------------------------------------- #
-# Helpers
+# Helpers (unchanged -- processor-agnostic)
 # --------------------------------------------------------------------------- #
 def parse_notes(value):
     """'Bergamot, Pepper' -> ['Bergamot', 'Pepper']; blank -> []."""
@@ -70,12 +68,6 @@ def load_sheet(path: str) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=SHEET_NAME, header=HEADER_ROW)
     df.columns = [c.strip() for c in df.columns]
     df = df[df["Brand"].notna() & df["Product Name"].notna() & df["Size"].notna()].copy()
-    # make_sku() from etl/sku.py -- this used to be its own inline
-    # slug(f"{brand}-{name}-{size}") here, a *different* formula than
-    # square_import.py's make_sku() (join-then-slug vs slug-each-then-join,
-    # plus no Concentration segment). Two copies of "the" SKU formula that
-    # could silently diverge is exactly what CLAUDE.md's "one function, used
-    # everywhere" gotcha for this file is about -- see etl/sku.py.
     df["SKU"] = df.apply(
         lambda r: make_sku(r["Brand"], r["Product Name"], r.get("Concentration"), r["Size"]),
         axis=1,
@@ -83,30 +75,17 @@ def load_sheet(path: str) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
-def fetch_square_ids() -> dict:
-    """Return {sku: (item_id, variation_id)} for everything in the Square catalog."""
-    from square import Square
-    from square.environment import SquareEnvironment
-
-    token = os.environ.get("SQUARE_ACCESS_TOKEN")
-    if not token:
-        sys.exit("SQUARE_ACCESS_TOKEN is not set in .env")
-    env_name = os.environ.get("SQUARE_ENVIRONMENT", "sandbox").lower()
-    env = SquareEnvironment.PRODUCTION if env_name == "production" else SquareEnvironment.SANDBOX
-    client = Square(environment=env, token=token)
-
+def fetch_clover_ids(client) -> dict:
+    """Return {sku: (item_group_id, item_id)} for everything in the Clover
+    catalog. expand=itemGroup surfaces the parent group id alongside the
+    item's own id."""
     mapping = {}
-    for obj in client.catalog.list(types="ITEM"):
-        item_data = getattr(obj, "item_data", None)
-        if not item_data:
+    for item in client.list_items(expand="itemGroup"):
+        sku = item.get("sku")
+        if not sku:
             continue
-        for var in getattr(item_data, "variations", None) or []:
-            vdata = getattr(var, "item_variation_data", None)
-            if not vdata:
-                continue
-            sku = getattr(vdata, "sku", None)
-            if sku:
-                mapping[sku] = (obj.id, var.id)
+        item_group = item.get("itemGroup") or {}
+        mapping[sku] = (item_group.get("id"), item["id"])
     return mapping
 
 
@@ -115,13 +94,13 @@ def fetch_square_ids() -> dict:
 # --------------------------------------------------------------------------- #
 UPSERT = """
 INSERT INTO dim_products (
-    sku, square_item_id, square_variation_id,
+    sku, clover_item_id, clover_variation_id,
     brand, product_name, concentration, size,
     price_cents, cost_cents,
     scent_family, top_notes, heart_notes, base_notes, gender, description,
     updated_at
 ) VALUES (
-    %(sku)s, %(item_id)s, %(variation_id)s,
+    %(sku)s, %(item_group_id)s, %(item_id)s,
     %(brand)s, %(product_name)s, %(concentration)s, %(size)s,
     %(price_cents)s, %(cost_cents)s,
     %(scent_family)s, %(top_notes)s, %(heart_notes)s, %(base_notes)s,
@@ -129,8 +108,8 @@ INSERT INTO dim_products (
     now()
 )
 ON CONFLICT (sku) DO UPDATE SET
-    square_item_id      = COALESCE(EXCLUDED.square_item_id, dim_products.square_item_id),
-    square_variation_id = COALESCE(EXCLUDED.square_variation_id, dim_products.square_variation_id),
+    clover_item_id      = COALESCE(EXCLUDED.clover_item_id, dim_products.clover_item_id),
+    clover_variation_id = COALESCE(EXCLUDED.clover_variation_id, dim_products.clover_variation_id),
     brand               = EXCLUDED.brand,
     product_name        = EXCLUDED.product_name,
     concentration       = EXCLUDED.concentration,
@@ -147,17 +126,17 @@ ON CONFLICT (sku) DO UPDATE SET
 """
 
 
-def build_rows(df: pd.DataFrame, square_ids: dict):
+def build_rows(df: pd.DataFrame, clover_ids: dict):
     rows, unmatched = [], []
     for _, r in df.iterrows():
         sku = r["SKU"]
-        item_id, variation_id = square_ids.get(sku, (None, None))
-        if variation_id is None:
+        item_group_id, item_id = clover_ids.get(sku, (None, None))
+        if item_id is None:
             unmatched.append(sku)
         rows.append({
             "sku": sku,
+            "item_group_id": item_group_id,
             "item_id": item_id,
-            "variation_id": variation_id,
             "brand": clean(r["Brand"]),
             "product_name": clean(r["Product Name"]),
             "concentration": clean(r.get("Concentration")),
@@ -185,13 +164,14 @@ def main():
     df = load_sheet(args.file)
     print(f"Sheet: {len(df)} products.")
 
-    print("Fetching Square catalog ids...")
-    square_ids = fetch_square_ids()
-    print(f"Square: {len(square_ids)} variations with SKUs.")
+    print("Fetching Clover catalog ids...")
+    client = get_client()
+    clover_ids = fetch_clover_ids(client)
+    print(f"Clover: {len(clover_ids)} items with SKUs.")
 
-    rows, unmatched = build_rows(df, square_ids)
+    rows, unmatched = build_rows(df, clover_ids)
     matched = len(rows) - len(unmatched)
-    print(f"Matched {matched}/{len(rows)} products to Square variation ids.")
+    print(f"Matched {matched}/{len(rows)} products to Clover item ids.")
     if unmatched:
         print(f"  unmatched: {', '.join(unmatched[:5])}"
               + (f" ... (+{len(unmatched) - 5})" if len(unmatched) > 5 else ""))
@@ -205,14 +185,20 @@ def main():
     url = os.environ.get("DATABASE_URL")
     if not url:
         sys.exit("DATABASE_URL is not set in .env")
-    with psycopg.connect(url) as conn:
+    # Supabase's transaction pooler doesn't support server-side prepared
+    # statements -- executemany() over many rows re-uses the same statement
+    # shape repeatedly, which auto-prepares after 5 uses by default and then
+    # fails once the pooler routes a later call to a different backend
+    # connection (confirmed live in sync_fraganty_images.py; see root
+    # CLAUDE.md). prepare_threshold=None turns that auto-prepare off.
+    with psycopg.connect(url, prepare_threshold=None) as conn:
         with conn.cursor() as cur:
             cur.executemany(UPSERT, rows)
         conn.commit()
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*), COUNT(square_variation_id) FROM dim_products")
+            cur.execute("SELECT COUNT(*), COUNT(clover_variation_id) FROM dim_products")
             total, linked = cur.fetchone()
-    print(f"\ndim_products: {total} rows, {linked} linked to Square.")
+    print(f"\ndim_products: {total} rows, {linked} linked to Clover.")
 
 
 if __name__ == "__main__":

@@ -1,36 +1,60 @@
-# Perfume Inventory → Square Importer
+# Perfume Inventory → Clover Importer
 
-ETL script that loads a fragrance inventory spreadsheet into Square's Catalog
-and Inventory APIs. Groups rows into Square's `item → variation` model
-(one item per brand + name + concentration, one variation per bottle size),
-upserts the catalog, then sets opening stock per variation at a location.
+ETL scripts that load a fragrance inventory spreadsheet into Clover's
+Platform API catalog, sync scent metadata into the warehouse, and transform
+Clover webhook events into the analytics fact tables. See `../CLAUDE.md` for
+the full architecture.
 
-Built against the **rewritten Square Python SDK (v42+)** — `from square import Square`.
+Built against Clover's Platform API directly (`etl/clover_client.py`) --
+there's no official Clover Python SDK, confirmed while building this.
 
 ## Setup
 ```bash
-pip install -r requirements.txt
-cp .env.example .env      # then paste your SANDBOX access token
+pip install -r etl/requirements.txt
+cp .env.example .env
 ```
+
+`.env` needs `CLOVER_MERCHANT_ID` and `CLOVER_API_TOKEN` -- the latter must
+be a genuine OAuth `access_token` (see
+`web/app/api/webhooks/clover-oauth-capture/route.ts` for how to get one;
+the merchant dashboard's own "Platform API" token does not work for these
+calls, confirmed live).
 
 ## Run
 ```bash
-# Build and inspect the API payload without any network calls
-python square_import.py --file Perfume_Inventory_100.xlsx --dry-run
+cd etl
 
-# Live import (start with SANDBOX credentials in .env)
-python square_import.py --file Perfume_Inventory_100.xlsx
+# Build and inspect the catalog plan without any network calls
+python clover_import.py --file Perfume_Inventory_Real.xlsx --dry-run
+
+# Live import (sandbox merchant first, always)
+python clover_import.py --file Perfume_Inventory_Real.xlsx
+
+# Pull scent metadata + Clover catalog ids into the warehouse
+python sync_products.py --file Perfume_Inventory_Real.xlsx
+
+# Process the webhook backlog into fact_orders / fact_line_items
+python transform_events.py
 ```
 
 ## Design notes
-- **Idempotent** upserts and inventory changes (UUID idempotency keys) — safe to re-run.
-- **Defensive validation**: rejects duplicate SKUs and missing prices before any API call.
-- **Temp-id round-trip**: assigns client-side `#var_...` ids, then maps them to the
-  real Square ids returned by `id_mappings` to attach inventory counts.
-- **Catalog vs. recommendation data are separated by design.** Only sellable
-  attributes (name, size, SKU, price, UPC, stock, shop blurb) go to Square. Scent
-  metadata (family, note pyramid, gender) is reserved for the recommendation layer.
+- **Idempotent**: re-running `clover_import.py` skips item groups/items that
+  already exist by name/SKU rather than duplicating them -- Clover's
+  Platform API has no batch-upsert/idempotency-key concept the way Square's
+  catalog API did, so check-then-create is the mechanism here instead.
+- **Defensive validation**: rejects duplicate SKUs and missing prices before
+  any API call.
+- **Catalog vs. recommendation data are separated by design.** Only
+  sellable attributes (name, size, SKU, price, UPC, stock) go to Clover.
+  Scent metadata (family, note pyramid, gender) is reserved for the
+  recommendation layer in the warehouse.
 
 ## Safety
 - `.env` is git-ignored; never commit tokens.
-- Test in **sandbox** first; the script warns loudly when `SQUARE_ENVIRONMENT=production`.
+- Test in **sandbox** first, always. Scripts that touch a merchant's
+  catalog (`clover_import.py`, `reset_catalog.py`) don't have a
+  Square-style automatic production warning baked in from `CLOVER_ENVIRONMENT`
+  the same way the old scripts did for `SQUARE_ENVIRONMENT` -- double check
+  `CLOVER_MERCHANT_ID` by hand before running against anything but the
+  sandbox test merchant. Never run against the live kiosk merchant without
+  explicit owner sign-off (see the migration plan's Phase 7).

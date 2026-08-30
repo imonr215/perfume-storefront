@@ -1,21 +1,40 @@
 -- ============================================================================
 -- Perfume storefront warehouse schema
 --
--- Design: raw-first. Every Square webhook lands in raw_square_events verbatim
+-- Design: raw-first. Every Clover webhook lands in raw_clover_events verbatim
 -- and is never mutated. The analytics tables below are derived from it, so
 -- they can always be rebuilt -- if we later need a field we didn't parse
 -- today, the original payload is still there.
 --
--- Square is the system of record for catalog/inventory/orders. This warehouse
--- exists for the things Square won't do: recommendations, cohort analysis,
--- and demand forecasting across both online and in-store channels.
+-- Clover is the system of record for catalog/inventory/orders. This warehouse
+-- exists for the things Clover won't do: recommendations, cohort analysis,
+-- and demand forecasting across both online and in-store channels -- both of
+-- which now settle through the same physical Flex device (see root
+-- CLAUDE.md), so there's a single event stream to reason about, not two.
+--
+-- Renamed from Square (square_* columns, raw_square_events) during the
+-- Clover migration. Every rename below is done as an idempotent conditional
+-- ALTER (checked via information_schema first) rather than a bare RENAME, so
+-- this file stays safe to re-run against a database that's already been
+-- migrated, an old database that hasn't, or a genuinely fresh install --
+-- apply_schema.py's core guarantee.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
 -- 1. RAW LAYER (append-only)
 -- ---------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS raw_square_events (
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables
+               WHERE table_name = 'raw_square_events')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.tables
+                        WHERE table_name = 'raw_clover_events') THEN
+        ALTER TABLE raw_square_events RENAME TO raw_clover_events;
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS raw_clover_events (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     event_id        TEXT        NOT NULL,
     event_type      TEXT        NOT NULL,
@@ -27,18 +46,18 @@ CREATE TABLE IF NOT EXISTS raw_square_events (
     process_error   TEXT
 );
 
--- Square retries a webhook up to 11 times over 24h. The same event_id arriving
--- twice must not create two rows -- this constraint is what makes the handler
--- idempotent (INSERT ... ON CONFLICT DO NOTHING).
+-- Clover can retry/redeliver a webhook. The same event_id arriving twice must
+-- not create two rows -- this constraint is what makes the handler idempotent
+-- (INSERT ... ON CONFLICT DO NOTHING).
 CREATE UNIQUE INDEX IF NOT EXISTS ux_raw_events_event_id
-    ON raw_square_events (event_id);
+    ON raw_clover_events (event_id);
 
 CREATE INDEX IF NOT EXISTS ix_raw_events_type_received
-    ON raw_square_events (event_type, received_at DESC);
+    ON raw_clover_events (event_type, received_at DESC);
 
 -- Partial index: the ETL only ever scans the unprocessed backlog.
 CREATE INDEX IF NOT EXISTS ix_raw_events_unprocessed
-    ON raw_square_events (received_at)
+    ON raw_clover_events (received_at)
     WHERE processed_at IS NULL;
 
 
@@ -47,12 +66,24 @@ CREATE INDEX IF NOT EXISTS ix_raw_events_unprocessed
 -- ---------------------------------------------------------------------------
 
 -- One row per sellable unit (a 50ml and 100ml of the same scent are 2 rows).
--- Scent attributes live here, NOT in Square -- they're what the recommender
+-- Scent attributes live here, NOT in Clover -- they're what the recommender
 -- runs on.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'dim_products' AND column_name = 'square_item_id') THEN
+        ALTER TABLE dim_products RENAME COLUMN square_item_id TO clover_item_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'dim_products' AND column_name = 'square_variation_id') THEN
+        ALTER TABLE dim_products RENAME COLUMN square_variation_id TO clover_variation_id;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS dim_products (
     sku                 TEXT PRIMARY KEY,
-    square_item_id      TEXT,
-    square_variation_id TEXT,
+    clover_item_id      TEXT,
+    clover_variation_id TEXT,
 
     brand               TEXT NOT NULL,
     product_name        TEXT NOT NULL,
@@ -91,16 +122,24 @@ CREATE TABLE IF NOT EXISTS dim_products (
 ALTER TABLE dim_products ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE dim_products ADD COLUMN IF NOT EXISTS image_transparent_url TEXT;
 
-CREATE INDEX IF NOT EXISTS ix_products_variation ON dim_products (square_variation_id);
+CREATE INDEX IF NOT EXISTS ix_products_variation ON dim_products (clover_variation_id);
 CREATE INDEX IF NOT EXISTS ix_products_family    ON dim_products (scent_family);
 CREATE INDEX IF NOT EXISTS ix_products_brand     ON dim_products (brand);
 
 
--- Customers appear only when Square attaches one to an order. Deliberately
--- minimal: we store the Square id and derived behaviour, not a copy of their
--- personal details. Square remains the record for contact info.
+-- Customers appear only when Clover attaches one to an order. Deliberately
+-- minimal: we store the Clover id and derived behaviour, not a copy of their
+-- personal details. Clover remains the record for contact info.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'dim_customers' AND column_name = 'square_customer_id') THEN
+        ALTER TABLE dim_customers RENAME COLUMN square_customer_id TO clover_customer_id;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS dim_customers (
-    square_customer_id  TEXT PRIMARY KEY,
+    clover_customer_id  TEXT PRIMARY KEY,
     first_order_at      TIMESTAMPTZ,
     last_order_at       TIMESTAMPTZ,
     order_count         INTEGER     NOT NULL DEFAULT 0,
@@ -116,15 +155,31 @@ CREATE TABLE IF NOT EXISTS dim_customers (
 -- ---------------------------------------------------------------------------
 
 -- channel is the backbone of the whole project: it's what lets us compare and
--- combine kiosk sales with QR/online sales in one model.
+-- combine kiosk sales with online sales in one model. Both now settle on the
+-- same physical Flex device (remote-pay for online, walk-up for in-store),
+-- so classify_channel() distinguishes them by a marker on the order/payment
+-- itself (see etl/transform_events.py), not by which API surface it arrived
+-- through -- there's only ever one.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'fact_orders' AND column_name = 'square_order_id') THEN
+        ALTER TABLE fact_orders RENAME COLUMN square_order_id TO clover_order_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'fact_orders' AND column_name = 'square_customer_id') THEN
+        ALTER TABLE fact_orders RENAME COLUMN square_customer_id TO clover_customer_id;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS fact_orders (
-    square_order_id     TEXT PRIMARY KEY,
-    square_customer_id  TEXT REFERENCES dim_customers (square_customer_id),
+    clover_order_id     TEXT PRIMARY KEY,
+    clover_customer_id  TEXT REFERENCES dim_customers (clover_customer_id),
     location_id         TEXT,
 
     channel             TEXT NOT NULL DEFAULT 'unknown'
         CHECK (channel IN ('online', 'in_store', 'unknown')),
-    source_name         TEXT,           -- raw Square source, kept for auditing
+    source_name         TEXT,           -- raw Clover source, kept for auditing
     state               TEXT,           -- OPEN / COMPLETED / CANCELED
 
     total_cents         BIGINT,
@@ -140,7 +195,7 @@ CREATE TABLE IF NOT EXISTS fact_orders (
 
 CREATE INDEX IF NOT EXISTS ix_orders_ordered_at ON fact_orders (ordered_at DESC);
 CREATE INDEX IF NOT EXISTS ix_orders_channel    ON fact_orders (channel, ordered_at DESC);
-CREATE INDEX IF NOT EXISTS ix_orders_customer   ON fact_orders (square_customer_id);
+CREATE INDEX IF NOT EXISTS ix_orders_customer   ON fact_orders (clover_customer_id);
 
 
 -- Line items drive both "frequently bought together" and per-SKU forecasting.
@@ -156,12 +211,28 @@ CREATE INDEX IF NOT EXISTS ix_orders_customer   ON fact_orders (square_customer_
 -- non-deferred constraint here. Deferred-to-COMMIT checking is what makes a
 -- coordinated multi-table rename possible at all; day-to-day single-row
 -- inserts/updates behave identically either way.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'fact_line_items' AND column_name = 'square_order_id') THEN
+        ALTER TABLE fact_line_items RENAME COLUMN square_order_id TO clover_order_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'fact_line_items' AND column_name = 'square_line_uid') THEN
+        ALTER TABLE fact_line_items RENAME COLUMN square_line_uid TO clover_line_uid;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'fact_line_items' AND column_name = 'square_variation_id') THEN
+        ALTER TABLE fact_line_items RENAME COLUMN square_variation_id TO clover_variation_id;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS fact_line_items (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    square_order_id     TEXT NOT NULL REFERENCES fact_orders (square_order_id) ON DELETE CASCADE,
-    square_line_uid     TEXT NOT NULL,
+    clover_order_id     TEXT NOT NULL REFERENCES fact_orders (clover_order_id) ON DELETE CASCADE,
+    clover_line_uid     TEXT NOT NULL,
     sku                 TEXT REFERENCES dim_products (sku) DEFERRABLE INITIALLY DEFERRED,
-    square_variation_id TEXT,
+    clover_variation_id TEXT,
 
     quantity            NUMERIC(10,2) NOT NULL DEFAULT 1,
     unit_price_cents    BIGINT,
@@ -173,10 +244,10 @@ CREATE TABLE IF NOT EXISTS fact_line_items (
 
 -- One row per line per order, so a webhook replay updates instead of duplicating.
 CREATE UNIQUE INDEX IF NOT EXISTS ux_line_items_order_uid
-    ON fact_line_items (square_order_id, square_line_uid);
+    ON fact_line_items (clover_order_id, clover_line_uid);
 
 CREATE INDEX IF NOT EXISTS ix_line_items_sku_time ON fact_line_items (sku, ordered_at DESC);
-CREATE INDEX IF NOT EXISTS ix_line_items_order    ON fact_line_items (square_order_id);
+CREATE INDEX IF NOT EXISTS ix_line_items_order    ON fact_line_items (clover_order_id);
 
 
 -- ---------------------------------------------------------------------------
@@ -221,7 +292,7 @@ SELECT
     p.gender,
     COALESCE(SUM(li.quantity), 0)                AS units_sold,
     COALESCE(SUM(li.total_cents), 0) / 100.0     AS revenue,
-    COUNT(DISTINCT li.square_order_id)           AS order_count
+    COUNT(DISTINCT li.clover_order_id)            AS order_count
 FROM dim_products p
 LEFT JOIN fact_line_items li ON li.sku = p.sku
 GROUP BY p.sku, p.brand, p.product_name, p.scent_family, p.gender;
@@ -240,6 +311,14 @@ GROUP BY p.sku, p.brand, p.product_name, p.scent_family, p.gender;
 -- backlog is processed; that's expected, not a bug to reconcile.
 -- ---------------------------------------------------------------------------
 
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'store_customers' AND column_name = 'square_customer_id') THEN
+        ALTER TABLE store_customers RENAME COLUMN square_customer_id TO clover_customer_id;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS store_customers (
     id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     email                   TEXT        NOT NULL UNIQUE,
@@ -247,7 +326,7 @@ CREATE TABLE IF NOT EXISTS store_customers (
     name                    TEXT,
     phone                   TEXT,
     default_shipping_address JSONB,     -- prefill only, not a full address book
-    square_customer_id      TEXT,       -- set lazily on first order (see lib/square.ts)
+    clover_customer_id      TEXT,       -- set lazily on first order (see lib/clover.ts)
 
     failed_login_attempts  INTEGER     NOT NULL DEFAULT 0,
     locked_until            TIMESTAMPTZ,
@@ -289,13 +368,25 @@ CREATE TABLE IF NOT EXISTS store_cart_items (
 
 -- id doubles as the confirmation-page URL token, so it must be unguessable --
 -- a guest with no account still needs to be able to open their receipt.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'store_orders' AND column_name = 'square_order_id') THEN
+        ALTER TABLE store_orders RENAME COLUMN square_order_id TO clover_order_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'store_orders' AND column_name = 'square_payment_id') THEN
+        ALTER TABLE store_orders RENAME COLUMN square_payment_id TO clover_payment_id;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS store_orders (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id         UUID        REFERENCES store_customers (id),
     guest_email         TEXT,
 
-    square_order_id     TEXT,
-    square_payment_id   TEXT,
+    clover_order_id     TEXT,
+    clover_payment_id   TEXT,
     status              TEXT        NOT NULL DEFAULT 'paid'
         CHECK (status IN ('paid', 'failed', 'refunded')),
 
@@ -313,7 +404,7 @@ CREATE TABLE IF NOT EXISTS store_orders (
 );
 
 CREATE INDEX IF NOT EXISTS ix_store_orders_customer ON store_orders (customer_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS ix_store_orders_square    ON store_orders (square_order_id);
+CREATE INDEX IF NOT EXISTS ix_store_orders_square    ON store_orders (clover_order_id);
 
 -- Snapshots product_name/brand/unit_price at purchase time -- a later catalog
 -- price change must not rewrite what someone already paid.

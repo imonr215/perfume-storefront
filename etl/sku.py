@@ -1,7 +1,7 @@
 """
 sku.py -- the one, shared place SKUs get built from spreadsheet fields.
 
-Used by square_import.py, sync_products.py, and generate_descriptions.py.
+Used by clover_import.py, sync_products.py, and generate_descriptions.py.
 Before this file existed, all three had their own copy-pasted slug()/SKU
 logic -- which is exactly the trap CLAUDE.md's "One function, used
 everywhere" gotcha warns about for make_sku(): three independent copies
@@ -11,12 +11,13 @@ join silently breaks. Import from here, don't re-implement.
 Concentration is part of the key as of 2026-08-16: a real inventory import
 (Perry Ellis "360deg", Lacoste "L.12.12 Blanc", Bvlgari "Pour Homme") turned
 up genuine Brand+Name+Size collisions across EDT/EDP variants of the same
-fragrance -- square_import.py's own duplicate-SKU guard caught it and
-refused to import rather than silently merging two distinct real products.
-This also brings dim_products in line with how Square's own catalog was
-already structured: build_catalog_objects() groups items by
-brand+name+concentration, with size as the variation -- make_sku() was the
-one place still missing concentration from that grouping key.
+fragrance -- the importer's own duplicate-SKU guard (square_import.py at the
+time; the same check lives in clover_import.py now) caught it and refused
+to import rather than silently merging two distinct real products. This
+also brought dim_products in line with how the catalog importer already
+grouped products: one group per brand+name+concentration, with size as the
+variant -- make_sku() was the one place still missing concentration from
+that grouping key.
 
 Concentration is skipped from the slug (not left as an empty segment) when
 blank -- some products genuinely don't have one on record yet (e.g. a
