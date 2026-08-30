@@ -11,6 +11,7 @@ import { CartFlyout } from "@/app/components/cart-flyout";
 import { CartBadgeLabel } from "@/app/components/cart-badge-label";
 import { SubmitButton } from "@/app/components/submit-button";
 import { CartCountProvider } from "@/lib/cart-context";
+import { KioskIdleReset } from "@/app/components/kiosk-idle-reset";
 import "./globals.css";
 
 /* Bitter for display: a sturdy slab serif, warm rather than the
@@ -55,6 +56,7 @@ export default async function RootLayout({
             to it on every render, so an optimistic bump just gets
             confirmed once the actual round trip finishes. */}
         <CartCountProvider serverCount={count}>
+          <KioskIdleReset />
           <header className="masthead">
             <div className="wrap masthead-inner">
               <Link href="/" className="wordmark">
