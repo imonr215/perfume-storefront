@@ -58,7 +58,7 @@ export default async function RootLayout({
           <header className="masthead">
             <div className="wrap masthead-inner">
               <Link href="/" className="wordmark">
-                Perfumery at <span>The Fashion District</span>
+                <span>Perfumery</span> at The Fashion District
               </Link>
               <nav className="site-nav" aria-label="Account and cart">
                 {session ? (
@@ -138,11 +138,10 @@ export default async function RootLayout({
           {children}
           <footer className="site-footer">
             <div className="wrap site-footer-inner">
-              {/* Storefront address, standard-website style -- separate
-                  from (and not a replacement for) the registered mailing
-                  address on the Terms page, which is the legal address for
-                  notices and stays as-is. This one just tells a visitor
-                  where the physical kiosk actually is. */}
+              {/* Storefront address, standard-website style -- same
+                  address as the Terms page's registered mailing address
+                  (kept in sync deliberately: one physical location, no
+                  reason for two addresses to disagree). */}
               <div className="site-footer-about">
                 <p className="site-footer-name">Perfumery at The Fashion District</p>
                 <p className="site-footer-address">Address: 901 Market St, Philadelphia, PA 19107</p>

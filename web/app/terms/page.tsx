@@ -23,8 +23,8 @@ export default function TermsPage() {
       <p>
         Perfumery at The Fashion District (&quot;we,&quot; &quot;us&quot;) is a fragrance
         counter operating a physical kiosk as well as this website, operated
-        by Jewels &amp; Treasures. Mailing address: 527 Foss Ave, Drexel
-        Hill, PA 19026.
+        by Jewels &amp; Treasures. Mailing address: 901 Market St,
+        Philadelphia, PA 19107.
       </p>
 
       <h2>Accounts</h2>

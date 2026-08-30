@@ -125,46 +125,6 @@ a { color: inherit; text-decoration: none; }
 }
 .search-submit:hover { background: var(--amber); border-color: var(--amber); }
 
-/* Filters dropdown, anchored to the search bar. <details> gives us an
-   open/closed toggle with no JS; the panel is positioned absolute so
-   opening it floats over the page instead of pushing content down. */
-.filters-dropdown { position: relative; flex: 0 0 auto; }
-.filters-toggle {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  list-style: none;
-  border: 1px solid var(--edge);
-  background: var(--paper);
-  border-radius: 999px;
-  padding: 0.72rem 1.1rem;
-  font-size: 0.9rem;
-  color: var(--ink-soft);
-  cursor: pointer;
-  user-select: none;
-  transition: border-color 0.15s, color 0.15s;
-}
-.filters-toggle::-webkit-details-marker { display: none; }
-.filters-toggle:hover { border-color: var(--amber); color: var(--ink); }
-.filters-dropdown[open] .filters-toggle {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-.filters-panel {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  left: 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  background: var(--paper);
-  border: 1px solid var(--edge);
-  border-radius: 4px 4px 16px 16px;
-  padding: 1.2rem;
-  min-width: 15rem;
-  box-shadow: 0 16px 36px -16px rgba(20, 52, 58, 0.35);
-}
 .filter-field { display: block; }
 .filter-field-label {
   display: block;
@@ -209,14 +169,12 @@ a { color: inherit; text-decoration: none; }
 }
 .filter-clear:hover { color: var(--amber); }
 
-/* --- Prominent filters (gender/concentration/size/price) ---------------
-   Kiosk/tablet browsing: these are the four things a passing shopper
-   actually filters by, so they stay on-screen at all times rather than
-   tucked behind a toggle -- scent family (harder for a first-time
-   customer to reason about) is what moved out to make room, into the
-   toggle further down instead. Still plain <select>s under the hood, same
-   as before this change (just relocated + always visible), so "Update
-   results" is what applies them -- see .filter-form's top comment. */
+/* --- Prominent filters (gender/concentration/size/price/family) --------
+   Kiosk/tablet browsing: five equal, always-visible rows -- what a passing
+   shopper actually filters by, all on-screen at once rather than any of
+   them (scent family included) tucked behind a toggle. Plain <select>s
+   under the hood, so "Update results" is what applies them -- see
+   .filter-form's top comment. */
 .filters-prominent {
   display: flex;
   flex-wrap: wrap;
@@ -229,52 +187,6 @@ a { color: inherit; text-decoration: none; }
   background: var(--paper);
 }
 .filters-prominent .filter-field { flex: 1 1 11rem; min-width: 9rem; }
-
-/* --- Family filter -----------------------------------------------------
-   One horizontally-scrolling row rather than wrapping to several lines --
-   there are a dozen families with some long names, so this trades "see
-   them all at once" for "one compact, swipeable bar". */
-.families {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 0.5rem;
-  padding: 1.8rem 0 2.6rem;
-  margin-top: 1.4rem;
-  border-bottom: 1px solid var(--edge);
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
-}
-.family {
-  flex: 0 0 auto;
-  border: 1px solid var(--edge);
-  background: var(--paper);
-  border-radius: 999px;
-  padding: 0.42rem 0.95rem;
-  font: inherit;
-  font-size: 0.9rem;
-  color: var(--ink-soft);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-}
-.family:hover { border-color: var(--amber); color: var(--ink); }
-.family[data-active="true"] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
-}
-
-/* Same .family pills, but inside the secondary filters-dropdown panel
-   instead of a full-bleed top-level strip -- wraps to fit the panel's
-   width rather than scrolling horizontally, since the panel is already a
-   bounded box, not the full page. */
-.filters-panel-families {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  max-width: 16rem;
-}
 
 /* --- Family hero ----------------------------------------------------------
    Only rendered when a specific family is active (see app/page.tsx) -- the
@@ -757,9 +669,10 @@ span.pagination-link[aria-disabled="true"] {
 .site-nav-cart { font-weight: 600; color: var(--ink); }
 .site-nav-logout { display: inline; }
 
-/* Cart flyout -- same <details> dropdown pattern as the search filters
-   (see .filters-dropdown), anchored to the right edge instead of the left
-   so the panel never runs off the viewport on desktop. */
+/* Cart flyout -- same <details>-as-dropdown pattern used elsewhere in
+   this app (no JS needed for an open/closed toggle), anchored to the
+   right edge instead of the left so the panel never runs off the
+   viewport on desktop. */
 .cart-flyout { position: relative; }
 .cart-flyout-toggle {
   display: inline-block;

@@ -111,20 +111,23 @@ export default async function Home({
             className="search-input"
           />
 
-          <button type="submit" name="family" value={family ?? ""} className="search-submit">
+          {/* No name/value pair needed here anymore: family is a plain
+              <select> now (see .filters-prominent below), so it always
+              self-submits its own current value regardless of which
+              button was clicked -- carrying it forward by hand here would
+              submit a second, stale "family" field alongside the select's
+              live one. */}
+          <button type="submit" className="search-submit">
             Search
           </button>
         </div>
 
-        {/* Gender, concentration, size, and price: the four things a
-            passing kiosk shopper actually thinks in, so these stay
-            on-screen at all times instead of behind a toggle -- scent
-            family moved out to make room (see the toggle below) since it's
-            the one dimension a first-time customer is likeliest to find
-            confusing rather than useful. Still plain <select>s, so picking
+        {/* Gender, concentration, size, price, and scent family: five
+            equal, always-visible rows -- what a passing kiosk shopper
+            filters by, all on-screen at once rather than any of them
+            tucked behind a toggle. Plain <select>s throughout, so picking
             one doesn't submit by itself -- "Update results" (or Search
-            above) is what applies them, same as every other control in
-            this form. */}
+            above) is what applies them. */}
         <div className="filters-prominent">
           <label className="filter-field">
             <span className="filter-field-label">Gender</span>
@@ -174,11 +177,19 @@ export default async function Home({
             </select>
           </label>
 
-          {/* name="family" here too: submit buttons only contribute their
-              pair when THEY'RE the one clicked, so without this a click on
-              "Update results" would silently drop whatever family was
-              already active in the toggle below. */}
-          <button type="submit" name="family" value={family ?? ""} className="filter-apply">
+          <label className="filter-field">
+            <span className="filter-field-label">Scent family</span>
+            <select name="family" defaultValue={family ?? ""}>
+              <option value="">Any family</option>
+              {families.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button type="submit" className="filter-apply">
             Update results
           </button>
         </div>
@@ -188,48 +199,6 @@ export default async function Home({
             Clear all filters
           </Link>
         )}
-
-        {/* Scent family: secondary and collapsed by default, native
-            <details> so the toggle needs no JS. Each pill is its own
-            type="submit" button carrying its own family=... -- safe to mix
-            with the plain <select>s above since a submit button only ever
-            contributes its own pair, and every other control here always
-            self-submits its current value regardless of which button was
-            clicked (see the top-level .filter-form comment). */}
-        <details className="filters-dropdown">
-          <summary className="filters-toggle">
-            Scent family{family ? ` (${family})` : ""}
-          </summary>
-          <div className="filters-panel">
-            <div
-              className="filters-panel-families"
-              role="group"
-              aria-label="Filter by scent family"
-            >
-              <button
-                type="submit"
-                name="family"
-                value=""
-                className="family"
-                data-active={!family}
-              >
-                Everything
-              </button>
-              {families.map((f) => (
-                <button
-                  key={f}
-                  type="submit"
-                  name="family"
-                  value={f}
-                  className="family"
-                  data-active={family === f}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
-        </details>
       </form>
 
       {family && <FamilyHero family={family} products={groups.map((g) => g.product)} />}
