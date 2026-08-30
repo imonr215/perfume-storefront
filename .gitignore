@@ -5,3 +5,8 @@ __pycache__/
 .venv/
 .vercel
 .env*
+
+# Staging area for manually-taken product photos, waiting to be resized/
+# copied into web/public/photos/ and wired to dim_products.image_url --
+# raw originals here aren't meant to be committed, the processed copies are.
+incoming-photos/

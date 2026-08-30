@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  getBrands,
   getConcentrations,
   getFamilies,
   getGenders,
@@ -27,6 +28,7 @@ type SearchParams = {
   gender?: string;
   concentration?: string;
   size?: string;
+  brand?: string;
   price?: string;
   page?: string;
 };
@@ -44,10 +46,11 @@ export default async function Home({
   const gender = sp.gender || undefined;
   const concentration = sp.concentration || undefined;
   const size = sp.size || undefined;
+  const brand = sp.brand || undefined;
   const priceBucket = sp.price && PRICE_BUCKETS[sp.price] ? sp.price : undefined;
   const bucket = priceBucket ? PRICE_BUCKETS[priceBucket] : undefined;
 
-  const activeFilterCount = [q, family, gender, concentration, size, priceBucket].filter(
+  const activeFilterCount = [q, family, gender, concentration, size, brand, priceBucket].filter(
     Boolean
   ).length;
   const page = Math.max(1, Number(sp.page) || 1);
@@ -57,18 +60,20 @@ export default async function Home({
     gender,
     concentration,
     size,
+    brand,
     q,
     priceMinCents: bucket?.min,
     priceMaxCents: bucket?.max,
   };
 
-  const [groups, total, families, genders, concentrations, sizes] = await Promise.all([
+  const [groups, total, families, genders, concentrations, sizes, brands] = await Promise.all([
     getProductGroups(productFilters, page),
     getProductGroupsCount(productFilters),
     getFamilies(),
     getGenders(),
     getConcentrations(),
     getSizes(),
+    getBrands(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PRODUCTS_PAGE_SIZE));
   // An empty page can mean two different things: the filters themselves
@@ -134,7 +139,7 @@ export default async function Home({
           </button>
         </div>
 
-        {/* Gender, concentration, size, price, and scent family: five
+        {/* Gender, concentration, size, price, brand, and scent family: six
             equal, always-visible rows -- what a passing kiosk shopper
             filters by, all on-screen at once rather than any of them
             tucked behind a toggle. Plain <select>s throughout, so picking
@@ -190,6 +195,18 @@ export default async function Home({
           </label>
 
           <label className="filter-field">
+            <span className="filter-field-label">Brand</span>
+            <select name="brand" defaultValue={brand ?? ""}>
+              <option value="">Any brand</option>
+              {brands.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="filter-field">
             <span className="filter-field-label">Scent family</span>
             <select name="family" defaultValue={family ?? ""}>
               <option value="">Any family</option>
@@ -217,6 +234,7 @@ export default async function Home({
 
       <p className="count">
         {total} {total === 1 ? "bottle" : "bottles"}
+        {brand ? ` by ${brand}` : ""}
         {family ? ` in ${family}` : ""}
         {q ? ` matching “${q}”` : ""}
       </p>

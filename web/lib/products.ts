@@ -24,6 +24,7 @@ export type ProductFilters = {
   gender?: string;
   concentration?: string;
   size?: string;
+  brand?: string;
   /** Free-text search: matches brand, product name, description, or any
    *  top/heart/base note. */
   q?: string;
@@ -42,6 +43,7 @@ function buildProductsWhere(filters: ProductFilters) {
   if (filters.gender) conditions.push(sql`gender = ${filters.gender}`);
   if (filters.concentration) conditions.push(sql`concentration = ${filters.concentration}`);
   if (filters.size) conditions.push(sql`size = ${filters.size}`);
+  if (filters.brand) conditions.push(sql`brand = ${filters.brand}`);
   if (filters.priceMinCents != null) conditions.push(sql`price_cents >= ${filters.priceMinCents}`);
   if (filters.priceMaxCents != null) conditions.push(sql`price_cents <= ${filters.priceMaxCents}`);
 
@@ -207,6 +209,16 @@ export async function getRandomProducts(limit: number): Promise<Product[]> {
     ORDER BY random()
     LIMIT ${limit}
   `;
+}
+
+export async function getBrands(): Promise<string[]> {
+  const rows = await sql<{ brand: string }[]>`
+    SELECT DISTINCT brand
+    FROM dim_products
+    WHERE is_active
+    ORDER BY brand
+  `;
+  return rows.map((r) => r.brand);
 }
 
 export async function getFamilies(): Promise<string[]> {
