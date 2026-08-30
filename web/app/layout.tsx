@@ -30,7 +30,7 @@ const body = Karla({
 });
 
 export const metadata: Metadata = {
-  title: "Bloom & Basin | fragrance counter",
+  title: "Perfumery at The Fashion District | fragrance counter",
   description:
     "A small fragrance counter. Browse the full shelf, find your scent, and reorder the one you already love.",
 };
@@ -58,7 +58,7 @@ export default async function RootLayout({
           <header className="masthead">
             <div className="wrap masthead-inner">
               <Link href="/" className="wordmark">
-                Bloom <span>&amp;</span> Basin
+                Perfumery at <span>The Fashion District</span>
               </Link>
               <nav className="site-nav" aria-label="Account and cart">
                 {session ? (
@@ -138,7 +138,16 @@ export default async function RootLayout({
           {children}
           <footer className="site-footer">
             <div className="wrap site-footer-inner">
-              <p>© 2026 Bloom &amp; Basin</p>
+              {/* Storefront address, standard-website style -- separate
+                  from (and not a replacement for) the registered mailing
+                  address on the Terms page, which is the legal address for
+                  notices and stays as-is. This one just tells a visitor
+                  where the physical kiosk actually is. */}
+              <div className="site-footer-about">
+                <p className="site-footer-name">Perfumery at The Fashion District</p>
+                <p className="site-footer-address">Address: 901 Market St, Philadelphia, PA 19107</p>
+                <p className="site-footer-copyright">© 2026 Perfumery at The Fashion District</p>
+              </div>
               <nav aria-label="Legal">
                 <Link href="/terms">Terms of Service</Link>
                 <Link href="/privacy">Privacy Policy</Link>

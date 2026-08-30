@@ -79,7 +79,7 @@ export function createCloverConnector(params: {
     params.merchantId,
     params.accessToken
   );
-  configBuilder.setFriendlyId("Bloom & Basin storefront checkout");
+  configBuilder.setFriendlyId("Perfumery at The Fashion District storefront checkout");
   const config = configBuilder.build();
 
   const factory = CloverConnectorFactoryBuilder.createICloverConnectorFactory();

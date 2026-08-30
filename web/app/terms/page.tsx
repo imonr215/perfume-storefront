@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Service | Bloom & Basin",
+  title: "Terms of Service | Perfumery at The Fashion District",
 };
 
 export default function TermsPage() {
@@ -14,14 +14,14 @@ export default function TermsPage() {
       <p className="legal-updated">Last updated August 2, 2026</p>
 
       <p>
-        These terms cover your use of the Bloom &amp; Basin website and any
+        These terms cover your use of the Perfumery at The Fashion District website and any
         order you place through it. By placing an order, you&apos;re agreeing
         to them.
       </p>
 
       <h2>Who we are</h2>
       <p>
-        Bloom &amp; Basin (&quot;we,&quot; &quot;us&quot;) is a fragrance
+        Perfumery at The Fashion District (&quot;we,&quot; &quot;us&quot;) is a fragrance
         counter operating a physical kiosk as well as this website, operated
         by Jewels &amp; Treasures. Mailing address: 527 Foss Ave, Drexel
         Hill, PA 19026.
@@ -63,7 +63,7 @@ export default function TermsPage() {
 
       <h2>Site content</h2>
       <p>
-        Text, images, and design on this site belong to Bloom &amp; Basin
+        Text, images, and design on this site belong to Perfumery at The Fashion District
         unless otherwise noted, and are here for you to shop with, not to
         copy or republish.
       </p>

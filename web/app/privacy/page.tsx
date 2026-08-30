@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy | Bloom & Basin",
+  title: "Privacy Policy | Perfumery at The Fashion District",
 };
 
 export default function PrivacyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       <p className="legal-updated">Last updated August 2, 2026</p>
 
       <p>
-        This describes what information Bloom &amp; Basin collects when you
+        This describes what information Perfumery at The Fashion District collects when you
         browse or order through this site, and what we do with it.
       </p>
 

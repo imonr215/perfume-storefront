@@ -7,7 +7,9 @@ Dual purpose: a real business taking real orders, and a portfolio project
 demonstrating data engineering and ML work. Both goals are real — don't
 sacrifice correctness for demo polish, or vice versa.
 
-Shop name is **Bloom & Basin**.
+Shop name is **Perfumery at The Fashion District** (was **Bloom & Basin**
+until 2026-08-30 — some historical commit messages/branch names predate the
+rename and still say the old name).
 
 ## Architecture
 
@@ -285,9 +287,12 @@ outside the exception below). They're copyrighted and trademarked, and this
 is a live business — that's real exposure, not a hypothetical.
 `app/components/bottle-glyph.tsx` draws an original flacon instead.
 
-**Exception: fraganty.ai paid API tier.** As of 2026-08-09, Bloom & Basin
-holds a paid fraganty.ai API subscription. Per terms at
-https://fraganty.ai/terms (Subscriber = Bloom & Basin), the Paid API tier
+**Exception: fraganty.ai paid API tier.** As of 2026-08-09, Perfumery at
+The Fashion District (subscribed under its prior name, Bloom & Basin —
+same account, unaffected by the rename) holds a paid fraganty.ai API
+subscription. Per terms at https://fraganty.ai/terms (Subscriber = the
+shop, under whichever name it held when the subscription was opened), the
+Paid API tier
 carries a worldwide, sublicensable license to commercially distribute Data
 Assets — explicitly including product photography and brand imagery —
 retrieved through it, backed by fraganty.ai's own ownership/sourcing

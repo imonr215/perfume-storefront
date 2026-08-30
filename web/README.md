@@ -1,4 +1,4 @@
-# Bloom & Basin — storefront
+# Perfumery at The Fashion District — storefront
 
 Next.js (App Router) storefront: catalog browsing, cart, guest + account
 checkout paid live on the kiosk's Clover Flex terminal via Remote Pay Cloud,

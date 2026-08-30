@@ -23,6 +23,7 @@ export type ProductFilters = {
   family?: string;
   gender?: string;
   concentration?: string;
+  size?: string;
   /** Free-text search: matches brand, product name, description, or any
    *  top/heart/base note. */
   q?: string;
@@ -40,6 +41,7 @@ function buildProductsWhere(filters: ProductFilters) {
   if (filters.family) conditions.push(sql`scent_family = ${filters.family}`);
   if (filters.gender) conditions.push(sql`gender = ${filters.gender}`);
   if (filters.concentration) conditions.push(sql`concentration = ${filters.concentration}`);
+  if (filters.size) conditions.push(sql`size = ${filters.size}`);
   if (filters.priceMinCents != null) conditions.push(sql`price_cents >= ${filters.priceMinCents}`);
   if (filters.priceMaxCents != null) conditions.push(sql`price_cents <= ${filters.priceMaxCents}`);
 
@@ -235,6 +237,30 @@ export async function getConcentrations(): Promise<string[]> {
     ORDER BY concentration
   `;
   return rows.map((r) => r.concentration);
+}
+
+/** Distinct sizes on record, for the top-level size filter (not to be
+ *  confused with getProductSizes, which is scoped to one fragrance's own
+ *  siblings). Sorted by the leading number ("50ml" before "100ml") rather
+ *  than alphabetically -- same reasoning and NaN-safety as
+ *  getProductSizes' sort, just applied to the whole catalog's distinct
+ *  values instead of one product's siblings. */
+export async function getSizes(): Promise<string[]> {
+  const rows = await sql<{ size: string }[]>`
+    SELECT DISTINCT size
+    FROM dim_products
+    WHERE is_active AND size IS NOT NULL
+  `;
+  return rows
+    .map((r) => r.size)
+    .sort((a, b) => {
+      const numA = parseFloat(a);
+      const numB = parseFloat(b);
+      if (Number.isNaN(numA) && Number.isNaN(numB)) return 0;
+      if (Number.isNaN(numA)) return 1;
+      if (Number.isNaN(numB)) return -1;
+      return numA - numB;
+    });
 }
 
 export async function getProduct(sku: string): Promise<Product | null> {

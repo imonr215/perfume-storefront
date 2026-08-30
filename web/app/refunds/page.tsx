@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Refund Policy | Bloom & Basin",
+  title: "Refund Policy | Perfumery at The Fashion District",
 };
 
 export default function RefundsPage() {

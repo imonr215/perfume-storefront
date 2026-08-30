@@ -5,16 +5,12 @@ import {
   getGenders,
   getProductGroups,
   getProductGroupsCount,
-  getProductsBySkus,
   getRandomProducts,
-  price,
+  getSizes,
   PRODUCTS_PAGE_SIZE,
 } from "@/lib/products";
-import { getRecentlyViewedSkus } from "@/lib/recently-viewed";
 import { ProductCard } from "@/app/components/product-card";
-import { ProductPhoto } from "@/app/components/product-photo";
 import { FamilyHero } from "@/app/components/family-hero";
-import { ScrollActiveFamilyIntoView } from "@/app/scroll-active-family";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +26,7 @@ type SearchParams = {
   family?: string;
   gender?: string;
   concentration?: string;
+  size?: string;
   price?: string;
   page?: string;
 };
@@ -46,37 +43,34 @@ export default async function Home({
   const family = sp.family || undefined;
   const gender = sp.gender || undefined;
   const concentration = sp.concentration || undefined;
+  const size = sp.size || undefined;
   const priceBucket = sp.price && PRICE_BUCKETS[sp.price] ? sp.price : undefined;
   const bucket = priceBucket ? PRICE_BUCKETS[priceBucket] : undefined;
 
-  const selectFilterCount = [gender, concentration, priceBucket].filter(Boolean).length;
-  const activeFilterCount = [q, family, gender, concentration, priceBucket].filter(Boolean).length;
+  const activeFilterCount = [q, family, gender, concentration, size, priceBucket].filter(
+    Boolean
+  ).length;
   const page = Math.max(1, Number(sp.page) || 1);
 
   const productFilters = {
     family,
     gender,
     concentration,
+    size,
     q,
     priceMinCents: bucket?.min,
     priceMaxCents: bucket?.max,
   };
 
-  const [groups, total, families, genders, concentrations, recentSkus] = await Promise.all([
+  const [groups, total, families, genders, concentrations, sizes] = await Promise.all([
     getProductGroups(productFilters, page),
     getProductGroupsCount(productFilters),
     getFamilies(),
     getGenders(),
     getConcentrations(),
-    getRecentlyViewedSkus(),
+    getSizes(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PRODUCTS_PAGE_SIZE));
-
-  // Only on the default, unfiltered landing view -- once someone's actively
-  // searching or filtering, a "recently viewed" rail is just clutter above
-  // the results they asked for.
-  const recentProducts =
-    activeFilterCount === 0 && recentSkus.length > 0 ? await getProductsBySkus(recentSkus) : [];
 
   // A dead-end search/filter combo shouldn't be a dead end for the visit --
   // offer a few random bottles to keep browsing instead of just stopping.
@@ -117,66 +111,75 @@ export default async function Home({
             className="search-input"
           />
 
-          {/* Native disclosure widget, not a client component: the panel's
-              form controls submit with the rest of the form regardless of
-              whether it's open or closed (CSS display:none on closed
-              <details> content doesn't exclude form fields from submission),
-              so this needs zero JS to behave like a filters dropdown. */}
-          <details className="filters-dropdown">
-            <summary className="filters-toggle">
-              Filters{selectFilterCount > 0 ? ` (${selectFilterCount})` : ""}
-            </summary>
-            <div className="filters-panel">
-              <label className="filter-field">
-                <span className="filter-field-label">Gender</span>
-                <select name="gender" defaultValue={gender ?? ""}>
-                  <option value="">Any gender</option>
-                  {genders.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="filter-field">
-                <span className="filter-field-label">Concentration</span>
-                <select name="concentration" defaultValue={concentration ?? ""}>
-                  <option value="">Any concentration</option>
-                  {concentrations.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="filter-field">
-                <span className="filter-field-label">Price</span>
-                <select name="price" defaultValue={priceBucket ?? ""}>
-                  <option value="">Any price</option>
-                  {Object.entries(PRICE_BUCKETS).map(([key, b]) => (
-                    <option key={key} value={key}>
-                      {b.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {/* name="family" here too: submit buttons only contribute
-                  their pair when THEY'RE the one clicked, so without this
-                  a click on "Apply filters" would silently drop whatever
-                  family pill was already active. Carrying the current
-                  value forward keeps it in place; a pill click still wins
-                  since only the clicked button's pair is submitted. */}
-              <button type="submit" name="family" value={family ?? ""} className="filter-apply">
-                Apply filters
-              </button>
-            </div>
-          </details>
-
           <button type="submit" name="family" value={family ?? ""} className="search-submit">
             Search
+          </button>
+        </div>
+
+        {/* Gender, concentration, size, and price: the four things a
+            passing kiosk shopper actually thinks in, so these stay
+            on-screen at all times instead of behind a toggle -- scent
+            family moved out to make room (see the toggle below) since it's
+            the one dimension a first-time customer is likeliest to find
+            confusing rather than useful. Still plain <select>s, so picking
+            one doesn't submit by itself -- "Update results" (or Search
+            above) is what applies them, same as every other control in
+            this form. */}
+        <div className="filters-prominent">
+          <label className="filter-field">
+            <span className="filter-field-label">Gender</span>
+            <select name="gender" defaultValue={gender ?? ""}>
+              <option value="">Any gender</option>
+              {genders.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="filter-field">
+            <span className="filter-field-label">Concentration</span>
+            <select name="concentration" defaultValue={concentration ?? ""}>
+              <option value="">Any concentration</option>
+              {concentrations.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="filter-field">
+            <span className="filter-field-label">Size</span>
+            <select name="size" defaultValue={size ?? ""}>
+              <option value="">Any size</option>
+              {sizes.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="filter-field">
+            <span className="filter-field-label">Price</span>
+            <select name="price" defaultValue={priceBucket ?? ""}>
+              <option value="">Any price</option>
+              {Object.entries(PRICE_BUCKETS).map(([key, b]) => (
+                <option key={key} value={key}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* name="family" here too: submit buttons only contribute their
+              pair when THEY'RE the one clicked, so without this a click on
+              "Update results" would silently drop whatever family was
+              already active in the toggle below. */}
+          <button type="submit" name="family" value={family ?? ""} className="filter-apply">
+            Update results
           </button>
         </div>
 
@@ -186,68 +189,50 @@ export default async function Home({
           </Link>
         )}
 
-        {/* Family pills are submit buttons in the same form, so clicking one
-            keeps whatever's currently in the search box and the filters
-            dropdown rather than resetting them -- the whole form submits
-            together, this button just adds its own family=... field. The
-            Search/Apply filters buttons return the favor above: they carry
-            the current family forward for the same reason. */}
-        <nav className="families" aria-label="Filter by scent family">
-          <button
-            type="submit"
-            name="family"
-            value=""
-            className="family"
-            data-active={!family}
-          >
-            Everything
-          </button>
-          {families.map((f) => (
-            <button
-              key={f}
-              type="submit"
-              name="family"
-              value={f}
-              className="family"
-              data-active={family === f}
+        {/* Scent family: secondary and collapsed by default, native
+            <details> so the toggle needs no JS. Each pill is its own
+            type="submit" button carrying its own family=... -- safe to mix
+            with the plain <select>s above since a submit button only ever
+            contributes its own pair, and every other control here always
+            self-submits its current value regardless of which button was
+            clicked (see the top-level .filter-form comment). */}
+        <details className="filters-dropdown">
+          <summary className="filters-toggle">
+            Scent family{family ? ` (${family})` : ""}
+          </summary>
+          <div className="filters-panel">
+            <div
+              className="filters-panel-families"
+              role="group"
+              aria-label="Filter by scent family"
             >
-              {f}
-            </button>
-          ))}
-        </nav>
+              <button
+                type="submit"
+                name="family"
+                value=""
+                className="family"
+                data-active={!family}
+              >
+                Everything
+              </button>
+              {families.map((f) => (
+                <button
+                  key={f}
+                  type="submit"
+                  name="family"
+                  value={f}
+                  className="family"
+                  data-active={family === f}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
       </form>
 
-      <ScrollActiveFamilyIntoView />
-
       {family && <FamilyHero family={family} products={groups.map((g) => g.product)} />}
-
-      {recentProducts.length > 0 && (
-        <section className="recent-rail">
-          <h2 className="section-label">Recently viewed</h2>
-          <div className="recent-rail-scroll">
-            {recentProducts.map((p) => (
-              <Link
-                key={p.sku}
-                href={`/scent/${p.sku}`}
-                className="recent-item"
-                prefetch={false}
-              >
-                <ProductPhoto
-                  sku={p.sku}
-                  brand={p.brand}
-                  family={p.scent_family}
-                  variant="recent"
-                  className="recent-item-glyph"
-                  imageUrl={p.image_url}
-                  imageTransparentUrl={p.image_transparent_url}
-                />
-                <p className="recent-item-name">{p.product_name}</p>
-                <p className="recent-item-price">{price(p.price_cents)}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
 
       <p className="count">
         {total} {total === 1 ? "bottle" : "bottles"}
