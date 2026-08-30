@@ -95,21 +95,29 @@ export type ProductGroup = {
   minPriceCents: number | null;
   maxPriceCents: number | null;
   sizes: ProductSizeOption[];
+  concentrations: ProductConcentrationOption[];
 };
 
-/** One tile per (brand, product name, concentration) rather than one per
- *  SKU/size row -- a two-size fragrance like Dior Sauvage EDT 50ml/100ml
- *  is one product to shop, not two unrelated-looking tiles. `DISTINCT ON`
- *  picks the cheapest size's row as the representative `Product` (its
- *  photo/description/notes are the same across sizes; only price/size
- *  legitimately differ), which is why the matching `ORDER BY` ends with
- *  `price_cents ASC` -- Postgres requires `DISTINCT ON` expressions to be
- *  the leading `ORDER BY` expressions, so the group key comes first and
- *  the tiebreak that actually picks which row wins comes last. The
- *  min/max window aggregates ride along on every row of a group before
- *  `DISTINCT ON` collapses it down to one, so they survive on the winning
- *  row -- same "from $X" data the size-selector needs, sourced in the same
- *  query rather than a second pass. */
+/** One tile per (brand, product name) rather than one per SKU/size/
+ *  concentration row -- e.g. one "Dior Sauvage" tile covering EDT and EDP
+ *  alike, each with its own sizes, rather than a separate tile per
+ *  concentration. Concentration used to be part of the group key here (see
+ *  git history) on the reasoning that EDT/EDP are genuinely different
+ *  products, not sizes of one another (etl/sku.py) -- still true
+ *  underneath (still distinct SKUs/prices, still a real ConcentrationSelector
+ *  choice, never silently blurred into "the same product"), but relaxed at
+ *  the grouping/display level per request: concentration is now a second
+ *  selectable dimension on the tile, same treatment as size, not a group
+ *  boundary. `DISTINCT ON` picks the overall cheapest variant (any size,
+ *  any concentration) as the representative `Product`, which is why the
+ *  matching `ORDER BY` ends with `price_cents ASC` -- Postgres requires
+ *  `DISTINCT ON` expressions to be the leading `ORDER BY` expressions, so
+ *  the group key comes first and the tiebreak that actually picks the
+ *  winning row comes last. The min/max window aggregates ride along on
+ *  every row of a group before `DISTINCT ON` collapses it down to one, so
+ *  they survive on the winning row -- same "from $X" data the size/
+ *  concentration selectors need, sourced in the same query rather than a
+ *  second pass. */
 export async function getProductGroups(
   filters: ProductFilters = {},
   page = 1
@@ -121,31 +129,32 @@ export async function getProductGroups(
     (Product & { group_min_price: number | null; group_max_price: number | null })[]
   >`
     WITH grouped AS (
-      SELECT DISTINCT ON (brand, product_name, concentration)
+      SELECT DISTINCT ON (brand, product_name)
         sku, brand, product_name, concentration, size, price_cents,
         scent_family, gender, top_notes, heart_notes, base_notes, description,
         image_url, image_transparent_url,
-        MIN(price_cents) OVER (PARTITION BY brand, product_name, concentration) AS group_min_price,
-        MAX(price_cents) OVER (PARTITION BY brand, product_name, concentration) AS group_max_price
+        MIN(price_cents) OVER (PARTITION BY brand, product_name) AS group_min_price,
+        MAX(price_cents) OVER (PARTITION BY brand, product_name) AS group_max_price
       FROM dim_products
       WHERE ${where}
-      ORDER BY brand, product_name, concentration, price_cents ASC
+      ORDER BY brand, product_name, price_cents ASC
     )
     SELECT * FROM grouped
     ORDER BY brand, product_name
     LIMIT ${PRODUCTS_PAGE_SIZE} OFFSET ${offset}
   `;
 
-  // Sibling sizes for each of this page's (<=24) groups -- one call per
-  // group to the same getProductSizes() the detail page's size selector
-  // already uses, run concurrently. Not a batched array_agg query: this
-  // page already fires several concurrent queries per load (see lib/db.ts's
-  // pool-sizing comment), and reusing the existing, already-correct
-  // function beats a second, fragile parallel-array aggregation of the
-  // same data.
-  const sizesByGroup = await Promise.all(
-    rows.map((r) => getProductSizes(r.brand, r.product_name, r.concentration))
-  );
+  // Sibling sizes (within the representative row's own concentration) and
+  // sibling concentrations for each of this page's (<=24) groups -- one
+  // call per group to each of getProductSizes()/getProductConcentrations(),
+  // run concurrently. Not a batched array_agg query: this page already
+  // fires several concurrent queries per load (see lib/db.ts's pool-sizing
+  // comment), and reusing the existing, already-correct functions beats a
+  // second, fragile parallel-array aggregation of the same data.
+  const [sizesByGroup, concentrationsByGroup] = await Promise.all([
+    Promise.all(rows.map((r) => getProductSizes(r.brand, r.product_name, r.concentration))),
+    Promise.all(rows.map((r) => getProductConcentrations(r.brand, r.product_name))),
+  ]);
 
   return rows.map((r, i) => ({
     product: {
@@ -167,6 +176,7 @@ export async function getProductGroups(
     minPriceCents: r.group_min_price,
     maxPriceCents: r.group_max_price,
     sizes: sizesByGroup[i],
+    concentrations: concentrationsByGroup[i],
   }));
 }
 
@@ -174,7 +184,7 @@ export async function getProductGroupsCount(filters: ProductFilters = {}): Promi
   const where = buildProductsWhere(filters);
   const rows = await sql<{ count: number }[]>`
     SELECT count(*)::int AS count FROM (
-      SELECT DISTINCT brand, product_name, concentration
+      SELECT DISTINCT brand, product_name
       FROM dim_products
       WHERE ${where}
     ) t
@@ -277,6 +287,33 @@ export async function getProductSizes(
     if (Number.isNaN(numB)) return -1;
     return numA - numB;
   });
+}
+
+export type ProductConcentrationOption = {
+  sku: string;
+  concentration: string | null;
+  price_cents: number | null;
+};
+
+/** Sibling concentrations of the same fragrance -- same brand and product
+ *  name, any concentration, any size. Each concentration is represented by
+ *  its own cheapest SKU (`DISTINCT ON` + matching `price_cents ASC` order,
+ *  same pattern as getProductGroups) so this links to *a* real, addressable
+ *  product for that concentration -- picking "EDP" here and picking a
+ *  specific size are two separate steps (this selector, then the size
+ *  selector on whichever concentration's page you land on), not one
+ *  combined jump, keeping this a plain link like SizeSelector rather than
+ *  needing client-side state to track two dimensions at once. */
+export async function getProductConcentrations(
+  brand: string,
+  productName: string
+): Promise<ProductConcentrationOption[]> {
+  return sql<ProductConcentrationOption[]>`
+    SELECT DISTINCT ON (concentration) sku, concentration, price_cents
+    FROM dim_products
+    WHERE is_active AND brand = ${brand} AND product_name = ${productName}
+    ORDER BY concentration, price_cents ASC
+  `;
 }
 
 /** Preserves the order of `skus` (most-recent-first for recently-viewed

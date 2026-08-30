@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct, getProductSizes, getSimilarProducts, hueFor, price } from "@/lib/products";
+import {
+  getProduct,
+  getProductConcentrations,
+  getProductSizes,
+  getSimilarProducts,
+  hueFor,
+  price,
+} from "@/lib/products";
 import { toggleWishlistAction } from "@/lib/actions/wishlist";
 import { getSession } from "@/lib/auth";
 import { isWishlisted } from "@/lib/wishlist";
@@ -9,6 +16,7 @@ import { ProductPhoto } from "@/app/components/product-photo";
 import { NoteIcon } from "@/app/components/note-icon";
 import { ProductCard } from "@/app/components/product-card";
 import { SizeSelector } from "@/app/components/size-selector";
+import { ConcentrationSelector } from "@/app/components/concentration-selector";
 import { SubmitButton } from "@/app/components/submit-button";
 import { RecordView } from "./record-view";
 
@@ -31,7 +39,7 @@ export default async function ScentPage({
 
   const hue = hueFor(p.scent_family);
 
-  const [session, similar, sizes] = await Promise.all([
+  const [session, similar, sizes, concentrations] = await Promise.all([
     getSession(),
     getSimilarProducts(p.sku, p.scent_family, [
       ...(p.top_notes ?? []),
@@ -39,6 +47,7 @@ export default async function ScentPage({
       ...(p.base_notes ?? []),
     ]),
     getProductSizes(p.brand, p.product_name, p.concentration),
+    getProductConcentrations(p.brand, p.product_name),
   ]);
   const wishlisted = session ? await isWishlisted(session.id, p.sku) : false;
 
@@ -74,6 +83,7 @@ export default async function ScentPage({
               {[p.concentration, p.size, p.gender].filter(Boolean).join(" · ")}
             </p>
 
+            <ConcentrationSelector concentrations={concentrations} currentSku={p.sku} />
             <SizeSelector sizes={sizes} currentSku={p.sku} />
 
             {p.description && <p className="detail-blurb">{p.description}</p>}

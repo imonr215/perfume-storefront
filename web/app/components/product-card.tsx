@@ -4,37 +4,43 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { hueFor, price } from "@/lib/format";
-import type { Product, ProductSizeOption } from "@/lib/products";
+import type { Product, ProductConcentrationOption, ProductSizeOption } from "@/lib/products";
 import { AddToCartForm } from "./add-to-cart-form";
 import { ProductPhoto } from "./product-photo";
 import { SizeSelector } from "./size-selector";
+import { ConcentrationSelector } from "./concentration-selector";
 
 export function ProductCard({
   product,
   sizes,
+  concentrations,
   minPriceCents,
   maxPriceCents,
 }: {
   product: Product;
-  /** Sibling sizes of the same fragrance (see lib/products.ts's
-   *  getProductGroups) -- optional and unused by every call site except
-   *  the main grid (app/page.tsx). Omitting it (the "You might also like"
+  /** Sibling sizes/concentrations of the same fragrance (see lib/products.ts's
+   *  getProductGroups) -- both optional and unused by every call site except
+   *  the main grid (app/page.tsx). Omitting them (the "You might also like"
    *  rail, the wishlist page) keeps this card's single-SKU behavior
    *  exactly as it's always been. */
   sizes?: ProductSizeOption[];
+  concentrations?: ProductConcentrationOption[];
   minPriceCents?: number | null;
   maxPriceCents?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const href = `/scent/${product.sku}`;
   const hue = hueFor(product.scent_family);
-  // A group with 2+ sizes shows the size links in place of the usual
-  // price/Add-to-cart/Quick-view block -- picking a size and adding to
-  // cart both stay a detail-page action for those (see the plan this was
-  // built from: cart never has to guess which size a tile-level click
-  // meant). A single-size group (the common case) falls through to the
-  // exact same rendering as before this feature existed.
+  // A group with 2+ sizes and/or 2+ concentrations shows those links in
+  // place of the usual price/Add-to-cart/Quick-view block -- picking a
+  // size or concentration and adding to cart both stay a detail-page
+  // action for those (see the plan this was built from: cart never has to
+  // guess which variant a tile-level click meant). A single-variant group
+  // (the common case) falls through to the exact same rendering as before
+  // this feature existed.
   const hasMultipleSizes = (sizes?.length ?? 0) >= 2;
+  const hasMultipleConcentrations = (concentrations?.length ?? 0) >= 2;
+  const hasVariants = hasMultipleSizes || hasMultipleConcentrations;
   const priceLabel =
     minPriceCents != null && maxPriceCents != null && maxPriceCents > minPriceCents
       ? `from ${price(minPriceCents)}`
@@ -90,11 +96,17 @@ export function ProductCard({
       <p className="brand">{product.brand}</p>
       <h2 className="name">{product.product_name}</h2>
       <p className="spec">
-        {/* Size dropped from this line once there's more than one on
-            record -- the size links below are what actually says which
-            sizes exist; showing just the cheapest one's size here would
-            read as the only size, not a starting point. */}
-        {(hasMultipleSizes ? [product.concentration] : [product.concentration, product.size])
+        {/* Concentration and/or size dropped from this line once either
+            varies within the group -- the selectors below are what
+            actually say which concentrations/sizes exist; showing just the
+            cheapest variant's own values here would read as the only
+            option, not a starting point. */}
+        {(hasMultipleConcentrations
+          ? []
+          : hasMultipleSizes
+            ? [product.concentration]
+            : [product.concentration, product.size]
+        )
           .filter(Boolean)
           .join(" · ")}
       </p>
@@ -105,8 +117,11 @@ export function ProductCard({
         <span className="stock">{product.scent_family}</span>
       </div>
 
-      {hasMultipleSizes ? (
-        <SizeSelector sizes={sizes!} />
+      {hasVariants ? (
+        <>
+          <ConcentrationSelector concentrations={concentrations ?? []} />
+          <SizeSelector sizes={sizes ?? []} />
+        </>
       ) : (
         <button type="button" className="quick-view-trigger" onClick={() => setOpen(true)}>
           Quick view

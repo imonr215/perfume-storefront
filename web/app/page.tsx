@@ -283,6 +283,7 @@ export default async function Home({
                 key={g.product.sku}
                 product={g.product}
                 sizes={g.sizes}
+                concentrations={g.concentrations}
                 minPriceCents={g.minPriceCents}
                 maxPriceCents={g.maxPriceCents}
               />
