@@ -38,6 +38,18 @@ already fully filled in. --force re-checks everything (e.g. once fraganty's
 own catalog has grown, or to redo family inference with an updated
 ACCORD_TO_FAMILY map).
 
+The paid tier's daily request quota is a real, hard limit -- confirmed live
+when a full 331-product run exhausted it outright (further calls the same
+day came back {"error": "Daily limit exceeded", "dailyRemaining": 0}). A
+plain re-run of this script the next day (no flags) is the intended retry:
+it's already incremental (see above), so it naturally only re-queries
+whatever's still missing image_url/scent_family, which by construction is
+exactly last run's unmatched list. See also clean_search_query() and
+SEARCH_LIMIT below -- both added after that same run showed the literal
+DB product_name (colons and all) returning zero fraganty candidates for
+several very mainstream products, not the narrow candidate pool a genuine
+catalog gap would produce.
+
 Usage:
     python sync_fraganty_images.py              # match unmatched products only
     python sync_fraganty_images.py --force       # re-check every active product
@@ -63,6 +75,12 @@ MIN_SCORE = 0.5
 # retry-on-429 handling in search_fraganty) -- paced slower so most requests
 # don't need that reactive backoff at all, just fewer, more predictable waits.
 REQUEST_DELAY_SECONDS = 2.0
+# 5 (fraganty's own apparent default) turned out too narrow for a generic,
+# single-word product name shared across many brands ("Blue", "Man",
+# "Woman") -- the real candidate can rank outside the top 5 and never reach
+# best_match()'s brand-token gate at all. Wider costs nothing extra against
+# the daily quota (still one request), just returns more candidates.
+SEARCH_LIMIT = 15
 
 # Stripped before comparing tokens -- present in our product_name/
 # concentration or fraganty's title inconsistently enough that leaving them
@@ -174,7 +192,20 @@ def token_overlap_score(a_tokens, b_tokens):
     return len(a & b) / len(a | b)
 
 
-def search_fraganty(api_key, query, limit=5):
+def clean_search_query(product_name: str) -> str:
+    """Strip a "Line: Variant" colon before searching -- confirmed live
+    that querying fraganty for the literal DB spelling ("Brit: For Her")
+    returns zero candidates, while the same product minus the colon almost
+    certainly doesn't (Burberry Brit is far too mainstream to actually be
+    missing from a fragrance database). This is our own product_name's
+    formatting convention, not fraganty's -- "212: Rose New York", "Coach
+    Dreams: moonlight", "Flora: Gorgeous Gardenia" all follow it. Collapses
+    to a single space rather than just deleting the colon, so no words run
+    together."""
+    return re.sub(r"\s*:\s*", " ", product_name).strip()
+
+
+def search_fraganty(api_key, query, limit=SEARCH_LIMIT):
     # Shells out to curl rather than urllib/ssl: this server's TLS chain is
     # missing an intermediate cert that Windows' native TLS stack (which
     # curl uses here) fetches on the fly via AIA chaining -- Python's
@@ -279,7 +310,7 @@ def main():
         # best_match() does the brand filtering against the candidates
         # this turns up.
         try:
-            result = search_fraganty(api_key, product_name)
+            result = search_fraganty(api_key, clean_search_query(product_name))
         except Exception as e:
             print(f"  [{i}/{len(rows)}] ERROR searching for {brand} {product_name!r}: {e}", flush=True)
             unmatched.append((sku, brand, product_name, "api error"))
