@@ -15,7 +15,6 @@
 export const FAMILY_HUE: Record<string, string> = {
   Citrus: "#d0a02a",
   "Fresh/Aquatic": "#4f8ea0",
-  Green: "#6f7f5c",
   Aromatic: "#7d9469",
   Fougère: "#5f8a72",
   Floral: "#c98195",
@@ -24,7 +23,6 @@ export const FAMILY_HUE: Record<string, string> = {
   "Amber/Oriental": "#7a4a63",
   Gourmand: "#a9663c",
   Leather: "#6b4630",
-  Spicy: "#b05a34",
 };
 
 export function hueFor(family: string | null): string {
@@ -38,7 +36,6 @@ export function hueFor(family: string | null): string {
 export const FAMILY_BLURB: Record<string, string> = {
   Citrus: "Bright and zesty, the wake-up call of the fragrance world.",
   "Fresh/Aquatic": "Clean and airy, like sea spray and cold water.",
-  Green: "Crisp stems and cut grass, the outdoors in a bottle.",
   Aromatic: "Herbal and sharp, built around lavender and sage.",
   Fougère: "The classic barbershop accord: lavender, oakmoss, and clean musk.",
   Floral: "Soft petals and powder, the most crowded family for good reason.",
@@ -47,7 +44,6 @@ export const FAMILY_BLURB: Record<string, string> = {
   "Amber/Oriental": "Rich resins and spice, warm and dense and unmistakable.",
   Gourmand: "Vanilla, sugar, and dessert-adjacent sweetness.",
   Leather: "Smoky and dry, worn-in and confident.",
-  Spicy: "Pepper, clove, and cinnamon for a kick of warmth.",
 };
 
 export function price(cents: number | null): string {

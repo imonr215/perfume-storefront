@@ -1,6 +1,8 @@
 """
 sync_fraganty_images.py -- match catalog products to fraganty.ai photos and
-store the resulting URLs on dim_products (image_url, image_transparent_url).
+store the resulting URLs on dim_products (image_url, image_transparent_url),
+AND best-effort infer scent_family from the same match's accords when a
+product doesn't have one yet.
 
 Paid API tier only -- see root CLAUDE.md's "Product images" section for the
 licensing basis (commercial-distribution license grant + IP warranty +
@@ -16,9 +18,25 @@ against the best remaining candidate must clear MIN_SCORE. A wrong match
 the storefront already falls back to BottleGlyph's generated artwork
 whenever image_url is NULL -- there's no broken-image case either way.
 
-Idempotent by default: skips products that already have image_url set, so
-re-running doesn't re-spend API calls on rows already matched. --force
-re-checks everything (e.g. once fraganty's own catalog has grown).
+Family inference (added once the real 334-product inventory landed with
+~68% of rows missing scent_family entirely) reuses the exact same search
+match rather than a second pass -- fraganty doesn't return one family
+field, it returns a weighted "accords" list (e.g. Sauvage: "Fresh Spicy"
+100%, "Amber" 59%, "Citrus" 56%), so ACCORD_TO_FAMILY maps fraganty's
+finer-grained accord vocabulary down to this catalog's own broader family
+set, walking accords strongest-first and using the first one with a known
+mapping. This is a best-effort heuristic, not a verified perfumer
+classification -- an accord this mapping doesn't recognize is skipped
+rather than guessed at, and a product with none of its accords mapped
+stays NULL rather than getting a wrong label. Never overwrites a
+scent_family that's already set (COALESCE at the SQL layer, belt-and-braces
+with the Python-side selection query below).
+
+Idempotent by default: skips products that already have BOTH image_url and
+scent_family set, so re-running doesn't re-spend API calls on rows that are
+already fully filled in. --force re-checks everything (e.g. once fraganty's
+own catalog has grown, or to redo family inference with an updated
+ACCORD_TO_FAMILY map).
 
 Usage:
     python sync_fraganty_images.py              # match unmatched products only
@@ -54,6 +72,68 @@ NOISE_WORDS = {
     "eau", "de", "parfum", "toilette", "cologne", "edp", "edt", "edc",
     "spray", "for", "men", "women", "man", "woman", "unisex", "ml",
 }
+
+# fraganty's accord names (Fragrantica-style, ~50-100 fine-grained terms) ->
+# this catalog's own broader scent_family set. Deliberately incomplete
+# rather than guessed wide: an accord not listed here is skipped in favor of
+# the next-strongest one that IS, rather than forced into a family it
+# doesn't really belong to. Family set matches what's actually in the real
+# inventory after the Spicy/Green singleton merge (see CLAUDE.md/this
+# migration's family-simplification pass) -- e.g. "Warm Spicy" maps to
+# Amber/Oriental and plain "Green" maps to Fresh/Aquatic, matching where
+# those two merged singletons went, not their own former buckets.
+ACCORD_TO_FAMILY = {
+    # Woody
+    "woody": "Woody", "woody aromatic": "Woody", "cedar": "Woody",
+    "sandalwood": "Woody", "oud": "Woody", "patchouli": "Woody",
+    "vetiver": "Woody", "earthy": "Woody", "dry woods": "Woody",
+    "mossy woods": "Woody", "nutty": "Woody", "tobacco": "Woody",
+    "leather": "Woody",
+    # Amber/Oriental
+    "amber": "Amber/Oriental", "warm spicy": "Amber/Oriental",
+    "spicy": "Amber/Oriental", "balsamic": "Amber/Oriental",
+    "powdery": "Amber/Oriental", "musky": "Amber/Oriental",
+    "animalic": "Amber/Oriental", "incense": "Amber/Oriental",
+    "resinous": "Amber/Oriental", "oriental": "Amber/Oriental",
+    "smoky": "Amber/Oriental", "honey": "Amber/Oriental",
+    # Floral
+    "floral": "Floral", "white floral": "Floral", "rose": "Floral",
+    "jasmine": "Floral", "powdery floral": "Floral", "tuberose": "Floral",
+    "iris": "Floral", "violet": "Floral", "ylang ylang": "Floral",
+    "fruity floral": "Floral",
+    # Aromatic
+    "aromatic": "Aromatic", "lavender": "Aromatic", "herbal": "Aromatic",
+    "anisic": "Aromatic", "fennel": "Aromatic",
+    # Fresh/Aquatic
+    "fresh": "Fresh/Aquatic", "aquatic": "Fresh/Aquatic",
+    "marine": "Fresh/Aquatic", "ozonic": "Fresh/Aquatic",
+    "fresh spicy": "Fresh/Aquatic", "watery": "Fresh/Aquatic",
+    "green": "Fresh/Aquatic",
+    # Fougère
+    "fougere": "Fougère", "aromatic fougere": "Fougère",
+    # Gourmand
+    "vanilla": "Gourmand", "sweet": "Gourmand", "gourmand": "Gourmand",
+    "coffee": "Gourmand", "chocolate": "Gourmand", "caramel": "Gourmand",
+    "praline": "Gourmand", "fruity sweet": "Gourmand", "tonka": "Gourmand",
+    # Citrus
+    "citrus": "Citrus", "fresh citrus": "Citrus", "bergamot": "Citrus",
+    "lemon": "Citrus", "orange": "Citrus", "yuzu": "Citrus",
+    "grapefruit": "Citrus",
+    # Chypre
+    "chypre": "Chypre", "mossy": "Chypre",
+}
+
+
+def family_from_accords(accords):
+    """Walk accords strongest-first, return the family of the first one
+    with a known mapping, or None if none of them map to anything."""
+    if not accords:
+        return None
+    for accord in sorted(accords, key=lambda a: a.get("strength", 0), reverse=True):
+        family = ACCORD_TO_FAMILY.get((accord.get("name") or "").strip().lower())
+        if family:
+            return family
+    return None
 
 
 def get_conn():
@@ -174,13 +254,14 @@ def main():
     with conn.cursor() as cur:
         if args.force:
             cur.execute(
-                "SELECT sku, brand, product_name FROM dim_products "
+                "SELECT sku, brand, product_name, scent_family FROM dim_products "
                 "WHERE is_active ORDER BY brand, product_name"
             )
         else:
             cur.execute(
-                "SELECT sku, brand, product_name FROM dim_products "
-                "WHERE is_active AND image_url IS NULL ORDER BY brand, product_name"
+                "SELECT sku, brand, product_name, scent_family FROM dim_products "
+                "WHERE is_active AND (image_url IS NULL OR scent_family IS NULL) "
+                "ORDER BY brand, product_name"
             )
         rows = cur.fetchall()
 
@@ -188,7 +269,9 @@ def main():
     matched = 0
     unmatched = []
 
-    for i, (sku, brand, product_name) in enumerate(rows, 1):
+    family_inferred = 0
+
+    for i, (sku, brand, product_name, current_family) in enumerate(rows, 1):
         # Search matches phrases against fraganty's `name` field alone --
         # brand isn't part of that text, so a combined "Dior Sauvage" query
         # matches nothing where "Sauvage" (the actual title) matches
@@ -222,23 +305,35 @@ def main():
         if not transparent_url or not url_ok(transparent_url):
             transparent_url = None
 
+        inferred_family = None
+        if current_family is None:
+            inferred_family = family_from_accords(match.get("accords"))
+            if inferred_family:
+                family_inferred += 1
+
+        family_note = f", family -> {inferred_family!r}" if inferred_family else ""
         print(
-            f"  [{i}/{len(rows)}] MATCH {brand} {product_name!r} -> {match.get('name')!r} (score {score:.2f})",
+            f"  [{i}/{len(rows)}] MATCH {brand} {product_name!r} -> {match.get('name')!r} "
+            f"(score {score:.2f}{family_note})",
             flush=True,
         )
         matched += 1
 
         if not args.dry_run:
             with conn.cursor() as cur:
+                # COALESCE on scent_family: never overwrite one that's
+                # already set, belt-and-braces with the WHERE clause above
+                # already excluding rows that have one (force mode doesn't).
                 cur.execute(
                     "UPDATE dim_products SET image_url = %s, image_transparent_url = %s, "
+                    "scent_family = COALESCE(dim_products.scent_family, %s), "
                     "updated_at = now() WHERE sku = %s",
-                    (image_url, transparent_url, sku),
+                    (image_url, transparent_url, inferred_family, sku),
                 )
 
         time.sleep(REQUEST_DELAY_SECONDS)
 
-    print(f"\nMatched {matched}/{len(rows)}.", flush=True)
+    print(f"\nMatched {matched}/{len(rows)} (family inferred for {family_inferred}).", flush=True)
     if unmatched:
         print(f"{len(unmatched)} unmatched (falls back to BottleGlyph):")
         for sku, brand, product_name, reason in unmatched:

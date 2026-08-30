@@ -526,16 +526,15 @@ span.pagination-link[aria-disabled="true"] {
 }
 .back:hover { color: var(--amber); }
 
-/* Card tinted with the product's own scent family color, wrapping
-   everything above "You might also like" (see app/scent/[sku]/scent-page.tsx) --
-   same light-tint-over-paper treatment as the family hero on the home grid,
-   not a solid saturated block, since real ink-colored text (brand, name,
-   price, description) has to stay readable sitting on top of it. Nesting
-   .detail inside this (rather than folding the two together) keeps .detail
-   reusable as a plain grid if this wrap treatment ever changes independently. */
+/* Plain card wrapping everything above "You might also like" (see
+   app/scent/[sku]/scent-page.tsx) -- previously tinted with the product's
+   own scent family color; removed in favor of the site's normal paper/edge
+   treatment. Nesting .detail inside this (rather than folding the two
+   together) keeps .detail reusable as a plain grid if this wrap treatment
+   ever changes independently. */
 .detail-family-wrap {
-  background: color-mix(in srgb, var(--family-hue) 55%, var(--paper));
-  border: 1px solid color-mix(in srgb, var(--family-hue) 75%, var(--edge));
+  background: var(--paper);
+  border: 1px solid var(--edge);
   border-radius: 20px;
   padding: 0.6rem 2.2rem;
   margin: 1.6rem 0 3rem;
