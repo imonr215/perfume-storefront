@@ -1,17 +1,23 @@
 """
 generate_descriptions.py -- rewrite the "Description (optional)" column with
-richer, less repetitive shop copy generated from the inventory's own note
-pyramid / scent family / gender / concentration data.
+short, plain-language shop copy generated from the inventory's own scent
+family / top notes data.
 
 Not pulled from Fragrantica or anywhere else -- same reasoning as the
 storefront's generated bottle-glyph work (see app/components/bottle-glyph.tsx):
 their write-ups are copyrighted editorial content, not ours to republish.
-Every fragrance here already has real top/heart/base notes, a scent family,
-a gender, and a concentration in this spreadsheet -- this script writes
-better prose around facts that were already there, instead of the templated
-one-liner the demo data shipped with ("Crisp and herbal everyday scent —
-opens with bergamot and settles into ambroxan.", repeated almost verbatim
-for every Aromatic fragrance and ignoring the heart notes entirely).
+
+One short sentence per product on purpose: the customer base is a passing
+mall kiosk shopper, not a fragrance forum -- an original version of this
+script wrote a full note-pyramid breakdown ("Opens with rosewood, cardamom
+and sichuan pepper, moves through oud and sandalwood, settles into tonka
+bean and vanilla...") plus a second sentence of gender/concentration
+marketing copy that just duplicated what the product page's own spec line
+and selectors already show. That read as connoisseur copy, not shelf copy,
+and buried the one plain, evocative line (the family phrase) a quick-glance
+shopper actually wants. This keeps just that line plus, when there's a top
+note to name, one recognizable highlight -- not all 7 notes across three
+tiers.
 
 Usage:
     python generate_descriptions.py --file Perfume_Inventory_100.xlsx --dry-run
@@ -95,34 +101,7 @@ FAMILY_PHRASES = {
     ],
 }
 
-GENDER_PHRASES = {
-    "Masculine": [
-        "a dependable, everyday men's signature",
-        "an easy, no-fuss pick for daily wear",
-        "a confident one-bottle-does-it-all choice",
-    ],
-    "Feminine": [
-        "a versatile, everyday signature",
-        "an easy, wear-anywhere choice",
-        "a confident one-bottle-does-it-all pick",
-    ],
-    "Unisex": [
-        "built to wear well on anyone",
-        "genuinely unisex, no gendered marketing required",
-        "flexible enough for any wardrobe",
-    ],
-}
-
-CONCENTRATION_PHRASES = {
-    "EDT": "light enough for daytime, with a few hours of wear",
-    "EDP": "concentrated enough to carry into the evening",
-    "Parfum": "the most concentrated cut here, built to last all day",
-    "Cologne": "a lighter, splashier cut, best refreshed through the day",
-}
-
 DEFAULT_FAMILY_PHRASE = "Distinctive and well-built, a scent with real character"
-DEFAULT_GENDER_PHRASE = "a versatile, everyday choice"
-DEFAULT_CONCENTRATION_PHRASE = "true to its concentration in how long it wears"
 
 
 def pick(pool: dict, key: str, sku: str):
@@ -141,42 +120,22 @@ def parse_notes(value) -> list[str]:
     return [n.strip() for n in str(value).split(",") if n.strip()]
 
 
-def join_notes(notes: list[str], limit: int) -> str | None:
-    picked = [n.lower() for n in notes[:limit] if n]
-    if not picked:
-        return None
-    if len(picked) == 1:
-        return picked[0]
-    if len(picked) == 2:
-        return f"{picked[0]} and {picked[1]}"
-    return f"{', '.join(picked[:-1])} and {picked[-1]}"
-
-
 def build_description(row, sku: str) -> str:
-    top = join_notes(parse_notes(row.get("Top Notes")), 3)
-    heart = join_notes(parse_notes(row.get("Heart Notes")), 2)
-    base = join_notes(parse_notes(row.get("Base Notes")), 2)
-
-    clauses = []
-    if top:
-        clauses.append(f"opens with {top}")
-    if heart:
-        clauses.append(f"moves through {heart}")
-    if base:
-        clauses.append(f"settles into {base}")
-    sentence1 = (", ".join(clauses) + ".").capitalize() if clauses else ""
-
     family = str(row.get("Scent Family") or "").strip()
-    gender = str(row.get("Gender") or "").strip()
-    concentration = str(row.get("Concentration") or "").strip()
-
     family_phrase = pick(FAMILY_PHRASES, family, sku) or DEFAULT_FAMILY_PHRASE
-    gender_phrase = pick(GENDER_PHRASES, gender, sku) or DEFAULT_GENDER_PHRASE
-    concentration_phrase = CONCENTRATION_PHRASES.get(concentration, DEFAULT_CONCENTRATION_PHRASE)
 
-    sentence2 = f"{family_phrase}. {gender_phrase.capitalize()}, {concentration_phrase}."
+    # Just the first listed top note, not all three top notes plus heart
+    # and base -- one recognizable ingredient is enough to make a product
+    # feel distinct from its shelf neighbors without turning the blurb into
+    # a note-pyramid breakdown. Spreadsheet order is treated as the
+    # product's own "lead" note, same assumption the old pyramid sentence
+    # made by listing top notes first.
+    top_notes = parse_notes(row.get("Top Notes"))
+    highlight = top_notes[0].strip().lower() if top_notes else None
 
-    return f"{sentence1} {sentence2}".strip()
+    if highlight:
+        return f"{family_phrase}, with a hint of {highlight}."
+    return f"{family_phrase}."
 
 
 def load(file: str) -> pd.DataFrame:
