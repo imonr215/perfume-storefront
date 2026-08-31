@@ -14,7 +14,17 @@ import type { Product } from "@/lib/products";
 export function FamilyHero({ family, products }: { family: string; products: Product[] }) {
   const hue = hueFor(family);
   const blurb = FAMILY_BLURB[family];
-  const cluster = products.slice(0, 4);
+  // A handful of real photos have no transparent (background-removed) variant
+  // at all -- fraganty.ai's own catalog doesn't have one for every match (see
+  // sync_fraganty_images.py) -- and those render with a visible white
+  // rectangle against this section's colored backdrop, unlike everywhere else
+  // on the site where every photo sits on a plain card. Grid tiles hide this;
+  // this decorative cluster can't, so it prefers photos that do have a
+  // transparent variant and only falls back to ones that don't if a family
+  // has fewer than 4 qualifying products.
+  const withTransparent = products.filter((p) => p.image_transparent_url);
+  const withoutTransparent = products.filter((p) => !p.image_transparent_url);
+  const cluster = [...withTransparent, ...withoutTransparent].slice(0, 4);
 
   return (
     <section className="family-hero" style={{ ["--family-hue" as string]: hue }}>
