@@ -49,7 +49,8 @@ function wrapBrand(brand: string): string[] {
  *
  * `variant` plus `sku` keep the internal clipPath id unique when the same
  * product's glyph is rendered more than once on a page at a time (e.g. a
- * grid card and its own quick-view modal open simultaneously).
+ * grid card and that same product showing up again in "You might also
+ * like" or the family hero cluster).
  */
 export function BottleGlyph({
   sku,

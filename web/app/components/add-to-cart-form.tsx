@@ -4,10 +4,12 @@ import { addToCartAction } from "@/lib/actions/cart";
 import { useCartCount } from "@/lib/cart-context";
 
 /**
- * Shared by the detail page and the quick-view modal. Still a plain
+ * The scent detail page's add-to-cart form. Still a plain
  * <form action={addToCartAction}> under the hood -- the onSubmit here
  * doesn't preventDefault, it just bumps the header badge optimistically
- * alongside the real submission (see lib/cart-context.tsx).
+ * alongside the real submission (see lib/cart-context.tsx). `onSubmitted`
+ * is optional and unused here now -- it used to close the grid's
+ * quick-view modal (removed), left in case a future caller needs it.
  */
 export function AddToCartForm({
   sku,
