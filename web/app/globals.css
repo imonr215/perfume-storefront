@@ -414,10 +414,14 @@ span.pagination-link[aria-disabled="true"] {
 }
 /* Grid cards clamp to keep row heights consistent regardless of how long a
    given description runs -- the full text is still shown on the detail
-   page (.detail-blurb) and in quick view, neither of which uses .card. */
+   page (.detail-blurb), which doesn't use .card. 4 lines rather than 3:
+   descriptions now end with a "how it wears" sentence (see
+   etl/simplify_descriptions.py's successor, the per-product description
+   pass), and 3 lines was clipping that sentence entirely on cards whose
+   first two sentences ran long -- confirmed live on "Tommy" among others. */
 .card .blurb {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
