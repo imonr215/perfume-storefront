@@ -252,14 +252,46 @@ export async function getGenders(): Promise<string[]> {
   return rows.map((r) => r.gender);
 }
 
+// Ordered weakest to strongest by actual fragrance concentration (percent
+// of aromatic oil), not alphabetically -- alphabetical order put "Cologne"
+// after "EDP" and "Elixir" before "EDT", which reads as arbitrary to
+// anyone who actually knows what these mean. "Elixer" is a real, live
+// value in the data (a typo for Elixir on one product -- not fixed here,
+// this ordering just needs to rank it the same as its correctly-spelled
+// sibling regardless). Anything not listed here (a future concentration
+// value, or something like "Deodorant" that isn't a fragrance strength at
+// all) sorts after all known ones, alphabetically among themselves, rather
+// than crashing or silently vanishing.
+const CONCENTRATION_ORDER = [
+  "cologne",
+  "edt",
+  "edp",
+  "edp intense",
+  "elixir",
+  "elixer",
+  "parfum",
+];
+
+function concentrationRank(concentration: string): number {
+  const rank = CONCENTRATION_ORDER.indexOf(concentration.toLowerCase().trim());
+  return rank === -1 ? CONCENTRATION_ORDER.length : rank;
+}
+
+function sortByConcentration<T extends { concentration: string | null }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const rankDiff = concentrationRank(a.concentration ?? "") - concentrationRank(b.concentration ?? "");
+    if (rankDiff !== 0) return rankDiff;
+    return (a.concentration ?? "").localeCompare(b.concentration ?? "");
+  });
+}
+
 export async function getConcentrations(): Promise<string[]> {
   const rows = await sql<{ concentration: string }[]>`
     SELECT DISTINCT concentration
     FROM dim_products
     WHERE is_active AND concentration IS NOT NULL
-    ORDER BY concentration
   `;
-  return rows.map((r) => r.concentration);
+  return sortByConcentration(rows).map((r) => r.concentration);
 }
 
 /** Common sizes on record, for the top-level size filter (not to be
@@ -374,8 +406,13 @@ export async function getProductConcentrations(
   brand: string,
   productName: string
 ): Promise<ProductConcentrationOption[]> {
-  // Same lower(trim(...)) matching as getProductSizes(), same reason.
-  return sql<ProductConcentrationOption[]>`
+  // Same lower(trim(...)) matching as getProductSizes(), same reason. The
+  // query's own ORDER BY has to stay alphabetical -- DISTINCT ON requires
+  // its leading ORDER BY expressions to match the DISTINCT ON list, so it
+  // can't sort by strength directly -- sortByConcentration() re-orders the
+  // already-deduplicated result afterward instead, same fix as
+  // getConcentrations().
+  const rows = await sql<ProductConcentrationOption[]>`
     SELECT DISTINCT ON (concentration) sku, concentration, price_cents
     FROM dim_products
     WHERE is_active
@@ -383,6 +420,7 @@ export async function getProductConcentrations(
       AND lower(trim(product_name)) = lower(trim(${productName}))
     ORDER BY concentration, price_cents ASC
   `;
+  return sortByConcentration(rows);
 }
 
 /** Preserves the order of `skus` (most-recent-first for recently-viewed
