@@ -129,22 +129,30 @@ export async function getProductGroups(
   const where = buildProductsWhere(filters);
   const offset = (Math.max(1, page) - 1) * PRODUCTS_PAGE_SIZE;
 
+  // Grouped by lower(trim(...)) rather than the raw columns -- confirmed
+  // live this catalog has genuine casing slips from data entry ("J'adore"
+  // vs "J'Adore", "Bleu de Chanel" vs "Bleu De Chanel") that split one
+  // product into two tiles under a case-sensitive grouping key. The raw
+  // brand/product_name are still selected and displayed as-is (whichever
+  // row wins the price tiebreak), just not used as the grouping key
+  // itself -- this can't fix which casing displays, only that a future
+  // slip like it can't split a tile again.
   const rows = await sql<
     (Product & { group_min_price: number | null; group_max_price: number | null })[]
   >`
     WITH grouped AS (
-      SELECT DISTINCT ON (brand, product_name)
+      SELECT DISTINCT ON (lower(trim(brand)), lower(trim(product_name)))
         sku, brand, product_name, concentration, size, price_cents,
         scent_family, gender, top_notes, heart_notes, base_notes, description,
         image_url, image_transparent_url,
-        MIN(price_cents) OVER (PARTITION BY brand, product_name) AS group_min_price,
-        MAX(price_cents) OVER (PARTITION BY brand, product_name) AS group_max_price
+        MIN(price_cents) OVER (PARTITION BY lower(trim(brand)), lower(trim(product_name))) AS group_min_price,
+        MAX(price_cents) OVER (PARTITION BY lower(trim(brand)), lower(trim(product_name))) AS group_max_price
       FROM dim_products
       WHERE ${where}
-      ORDER BY brand, product_name, price_cents ASC
+      ORDER BY lower(trim(brand)), lower(trim(product_name)), price_cents ASC
     )
     SELECT * FROM grouped
-    ORDER BY brand, product_name
+    ORDER BY lower(trim(brand)), lower(trim(product_name))
     LIMIT ${PRODUCTS_PAGE_SIZE} OFFSET ${offset}
   `;
 
@@ -186,9 +194,12 @@ export async function getProductGroups(
 
 export async function getProductGroupsCount(filters: ProductFilters = {}): Promise<number> {
   const where = buildProductsWhere(filters);
+  // lower(trim(...)) here too -- must match getProductGroups()'s grouping
+  // key exactly, or this count and the actual number of tiles rendered
+  // (and therefore pagination) would silently drift apart.
   const rows = await sql<{ count: number }[]>`
     SELECT count(*)::int AS count FROM (
-      SELECT DISTINCT brand, product_name
+      SELECT DISTINCT lower(trim(brand)), lower(trim(product_name))
       FROM dim_products
       WHERE ${where}
     ) t
@@ -318,12 +329,16 @@ export async function getProductSizes(
   productName: string,
   concentration: string | null
 ): Promise<ProductSizeOption[]> {
+  // lower(trim(...)) on both sides -- must match getProductGroups()'s
+  // grouping key, or a casing/whitespace slip on one sibling row would
+  // make it invisible to this selector even after the tile itself
+  // correctly grouped the rest.
   const rows = await sql<ProductSizeOption[]>`
     SELECT sku, size, price_cents
     FROM dim_products
     WHERE is_active
-      AND brand = ${brand}
-      AND product_name = ${productName}
+      AND lower(trim(brand)) = lower(trim(${brand}))
+      AND lower(trim(product_name)) = lower(trim(${productName}))
       AND concentration IS NOT DISTINCT FROM ${concentration}
   `;
   // Sorted smallest-to-largest by the leading number in size ("50ml" before
@@ -359,10 +374,13 @@ export async function getProductConcentrations(
   brand: string,
   productName: string
 ): Promise<ProductConcentrationOption[]> {
+  // Same lower(trim(...)) matching as getProductSizes(), same reason.
   return sql<ProductConcentrationOption[]>`
     SELECT DISTINCT ON (concentration) sku, concentration, price_cents
     FROM dim_products
-    WHERE is_active AND brand = ${brand} AND product_name = ${productName}
+    WHERE is_active
+      AND lower(trim(brand)) = lower(trim(${brand}))
+      AND lower(trim(product_name)) = lower(trim(${productName}))
     ORDER BY concentration, price_cents ASC
   `;
 }
