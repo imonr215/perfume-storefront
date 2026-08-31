@@ -221,9 +221,18 @@ def search_fraganty(api_key, query, limit=SEARCH_LIMIT):
     # products as unmatched. Back off for exactly as long as it says and
     # retry the same request instead.
     while True:
+        # encoding="utf-8" explicitly -- fraganty's JSON responses are UTF-8
+        # (accented brand/perfume names throughout: Estée Lauder, Grès,
+        # Rosé, 360°...), but text=True alone decodes subprocess output
+        # using the ambient console codepage, cp1252 on this Windows
+        # machine. Confirmed live: that's silently produced mojibake all
+        # session ("Est?e Lauder") for characters that happen to have SOME
+        # cp1252 mapping, and hard-crashed with UnicodeDecodeError for ones
+        # that don't (Givenchy's catalog has one) -- explicit encoding
+        # fixes both at once.
         result = subprocess.run(
             ["curl", "-s", "--max-time", "15", "-H", f"X-API-Key: {api_key}", url],
-            capture_output=True, text=True, check=True,
+            capture_output=True, text=True, encoding="utf-8", check=True,
         )
         data = json.loads(result.stdout)
         if isinstance(data, dict) and data.get("error") == "Rate limit exceeded":
