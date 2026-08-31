@@ -137,8 +137,15 @@ ACCORD_TO_FAMILY = {
     "citrus": "Citrus", "fresh citrus": "Citrus", "bergamot": "Citrus",
     "lemon": "Citrus", "orange": "Citrus", "yuzu": "Citrus",
     "grapefruit": "Citrus",
-    # Chypre
-    "chypre": "Chypre", "mossy": "Chypre",
+    # Chypre folds into Woody rather than getting its own family: this
+    # catalog's real accord mix only ever produced one Chypre-classified
+    # product (Nishane Hacivat, reassigned to Woody -- its own mossy/oakmoss
+    # base is exactly the "mossy woods" case already mapped to Woody above),
+    # and a scent-family filter option with a single result isn't useful.
+    # If the catalog ever grows enough distinct chypre fragrances to justify
+    # a real filter bucket, split this back out deliberately -- don't let it
+    # happen by accident one fraganty match at a time.
+    "chypre": "Woody", "mossy": "Woody",
 }
 
 
